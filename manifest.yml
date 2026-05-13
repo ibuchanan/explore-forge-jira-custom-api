@@ -1,0 +1,31 @@
+modules:
+  jira:adminPage:
+    - key: admin-page
+      resource: admin-page-resource
+      render: native
+      title: API Base URL
+  apiRoute:
+    - key: workitem-post
+      path: /workitem
+      operation: POST
+      function: workitem-handler
+      accept:
+        - application/json
+      scopes:
+        - write:workitem:custom
+  function:
+    - key: workitem-handler
+      handler: index.handleWorkitem
+resources:
+  - key: admin-page-resource
+    path: src/frontend/index.tsx
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+app:
+  runtime:
+    name: nodejs24.x
+    memoryMB: 256
+    architecture: arm64
+  id: ari:cloud:ecosystem::app/bb398628-d837-4378-9fe5-9b033fb24aac

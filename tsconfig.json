@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "include": ["src"],
+  "exclude": [
+    "src/jira-platform-2/types.ts",
+    "src/jira-platform-3/types.ts",
+    "src/jira-servicedesk/types.ts",
+    "src/jira-software/types.ts"
+  ],
+  "compilerOptions": {
+    /* Base Options */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+
+    /* Transpiling for Forge bundler (requried) */
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": true,
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+
+    /* Strictness */
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+
+    /* Types */
+    "types": ["node"],
+
+    /* Forge Runtime & UI */
+    "lib": ["ES2022"],
+    "jsx": "react"
+  }
+}
