@@ -47,7 +47,6 @@
     "git-cliff": "*",
     "openapi-typescript": "*",
     "react": "^18.3",
-    "tsx": "*",
     "typescript": "5",
     "vitest": "*",
     "yaml": "^2.9"
