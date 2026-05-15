@@ -17,10 +17,9 @@
 import {
   type ApiRouteRequest,
   type ApiRouteResponse,
-  json,
+  buildErrorResponse,
+  buildSuccessResponse,
   logApiRouteRequest,
-  problemJson,
-  type JSONValue,
 } from "forge-ahead";
 import { resolveFieldNames, translateKeys } from "./field-resolver";
 import { createIssue, JiraApiError } from "./jira-client";
@@ -42,13 +41,13 @@ export async function handleWorkitem(
   try {
     parsed = JSON.parse(req.body ?? "null");
   } catch {
-    return problemJson(400, "Request body must be valid JSON");
+    return buildErrorResponse(400, "Request body must be valid JSON");
   }
 
   // 2. Validate shape with zod
   const validation = WorkitemRequestSchema.safeParse(parsed);
   if (!validation.success) {
-    return problemJson(
+    return buildErrorResponse(
       400,
       "Request body must include: project (string), issueType (string), fields (object). " +
         "Optional: update (object).",
@@ -69,13 +68,16 @@ export async function handleWorkitem(
     const result = await resolveFieldNames(project, issueType, namesToResolve);
 
     if (result.isErr()) {
-      return json(result.error.status, result.error as unknown as JSONValue);
+      return buildErrorResponse(result.error);
     }
 
     resolved = result.value;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return problemJson(500, `Failed to fetch field metadata: ${message}`);
+    return buildErrorResponse(
+      500,
+      `Failed to fetch field metadata: ${message}`,
+    );
   }
 
   // 4. Translate field names → Jira field IDs
@@ -101,7 +103,7 @@ export async function handleWorkitem(
   // 6. Create the issue
   try {
     const created = await createIssue(jiraBody);
-    return json(201, created as unknown as JSONValue);
+    return buildSuccessResponse(created as object, 201);
   } catch (err) {
     if (err instanceof JiraApiError) {
       // Forward Jira's status + body faithfully (Jira's own error format)
@@ -112,6 +114,6 @@ export async function handleWorkitem(
       };
     }
     const message = err instanceof Error ? err.message : String(err);
-    return problemJson(500, `Failed to create issue: ${message}`);
+    return buildErrorResponse(500, `Failed to create issue: ${message}`);
   }
 }

@@ -8,9 +8,13 @@
  */
 
 export {
-  json,
+  buildErrorResponse,
+  buildSuccessResponse,
   logApiRouteRequest,
-  problemJson,
 } from "./apiRoute";
 
-export type { ApiRouteRequest, ApiRouteResponse } from "./apiRoute";
+export type {
+  ApiRouteFunction,
+  ApiRouteRequest,
+  ApiRouteResponse,
+} from "./apiRoute";

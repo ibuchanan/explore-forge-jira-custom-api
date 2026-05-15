@@ -9,12 +9,12 @@
  *
  * @example
  * ```typescript
- * import { type ApiRouteRequest, type ApiRouteResponse, problemJson, json } from "forge-ahead/api";
+ * import { type ApiRouteRequest, type ApiRouteResponse, buildSuccessResponse, buildErrorResponse } from "forge-ahead/api";
  *
  * export async function handleFoo(req: ApiRouteRequest): Promise<ApiRouteResponse> {
  *   logApiRouteRequest(req, "foo");
  *   // ... handler logic
- *   return json(200, { result: "ok" });
+ *   return buildSuccessResponse({ result: "ok" });
  * }
  * ```
  */
@@ -34,6 +34,24 @@ import type { HttpRequest, HttpResponse } from "../util/http";
 export type ApiRouteRequest = HttpRequest;
 
 /**
+ * Handler function type for Forge App REST API (`apiRoute`) endpoints.
+ *
+ * Matches the signature Forge expects: receives an {@link ApiRouteRequest}
+ * and returns an {@link ApiRouteResponse} (or a Promise of one).
+ *
+ * @example
+ * ```typescript
+ * export const handler: ApiRouteFunction = async (req) => {
+ *   logApiRouteRequest(req, "myRoute");
+ *   return buildSuccessResponse({ result: "ok" });
+ * };
+ * ```
+ */
+export type ApiRouteFunction = (
+  req: ApiRouteRequest,
+) => ApiRouteResponse | Promise<ApiRouteResponse>;
+
+/**
  * Shape of a Forge App REST API response.
  *
  * Alias of {@link HttpResponse} — returned from `apiRoute` handler functions
@@ -43,51 +61,77 @@ export type ApiRouteRequest = HttpRequest;
 export type ApiRouteResponse = HttpResponse;
 
 /**
- * Build a JSON response with the given status code and body.
+ * Build a JSON success response.
  *
  * Sets `Content-Type: application/json` automatically.
  *
- * @param statusCode - HTTP status code (e.g. 200, 201, 400)
- * @param body - Any JSON-serializable value
+ * @param message - Response body object (default: `{ message: "OK" }`)
+ * @param statusCode - HTTP status code (default: `200`)
+ * @returns {@link ApiRouteResponse} with a JSON-encoded body
+ *
+ * @example
+ * ```typescript
+ * return buildSuccessResponse({ data: results });
+ * return buildSuccessResponse({ id: created.id }, 201);
+ * ```
  */
-export function json(statusCode: number, body: JSONValue): ApiRouteResponse {
+export function buildSuccessResponse(
+  message: object = { message: "OK" },
+  statusCode: number = 200,
+): ApiRouteResponse {
   return {
     statusCode,
     headers: { "Content-Type": ["application/json"] },
-    body: JSON.stringify(body),
+    body: JSON.stringify(message),
   };
 }
 
 /**
- * Build an RFC 9457 Problem Details JSON response.
+ * Build an RFC 9457 Problem Details error response.
  *
- * Looks up the standard error title for the given status code and produces
- * a {@link ProblemDetails} body with `type`, `title`, `status`, `detail`,
- * and `timestamp`.
- *
- * @param statusCode - HTTP status code (e.g. 400, 500)
- * @param detail - Human-readable explanation specific to this occurrence
+ * Accepts either a pre-built {@link ProblemDetails} object or a raw
+ * `(statusCode, detail)` pair. When called with a status code and detail
+ * string, it looks up the standard error title and constructs the
+ * Problem Details body automatically.
  *
  * @example
  * ```typescript
- * return problemJson(400, "Request body must be valid JSON");
- * // → { type: "https://httpstatuses.io/400", title: "Bad Request",
- * //     status: 400, detail: "...", timestamp: "..." }
+ * // From a ProblemDetails object (e.g. from StandardError)
+ * return buildErrorResponse(StandardError.getOrDefault(404).error("Not found").error);
+ *
+ * // From a status code and detail string
+ * return buildErrorResponse(400, "Request body must be valid JSON");
  * ```
  */
-export function problemJson(
+export function buildErrorResponse(error: ProblemDetails): ApiRouteResponse;
+export function buildErrorResponse(
   statusCode: number,
   detail: string,
+): ApiRouteResponse;
+export function buildErrorResponse(
+  errorOrCode: ProblemDetails | number,
+  detail?: string,
 ): ApiRouteResponse {
-  const error = StandardError.getOrDefault(statusCode);
-  const problem: ProblemDetails = {
-    type: error.type,
-    title: error.title,
-    status: error.status,
-    detail,
-    timestamp: new Date().toISOString(),
+  if (typeof errorOrCode === "number") {
+    const std = StandardError.getOrDefault(errorOrCode);
+    const problem: ProblemDetails = {
+      type: std.type,
+      title: std.title,
+      status: std.status,
+      detail: detail ?? "",
+      timestamp: new Date().toISOString(),
+    };
+    return {
+      statusCode: errorOrCode,
+      headers: { "Content-Type": ["application/json"] },
+      body: JSON.stringify(problem),
+    };
+  }
+  return {
+    statusCode: errorOrCode.status,
+    headers: { "Content-Type": ["application/json"] },
+    body: JSON.stringify(errorOrCode),
   };
-  return json(statusCode, problem as unknown as JSONValue);
 }
 
 /**

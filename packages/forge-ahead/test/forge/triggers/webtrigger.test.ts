@@ -17,7 +17,6 @@ import type {
 import {
   buildErrorResponse,
   buildSuccessResponse,
-  extractClientHeaders,
 } from "../../../src/forge/triggers/webtrigger";
 import { StandardError } from "../../../src/util/errors";
 
@@ -26,59 +25,7 @@ const sampleEvent = JSON.parse(
   JSON.stringify(require("../../data/event/webtrigger.json")),
 ) as WebtriggerEvent;
 
-// Headers added by Atlassian infrastructure that client code should never see.
-// Kept in one place so both the unit tests and integration tests stay in sync.
-const INFRASTRUCTURE_HEADERS = [
-  "host",
-  "content-type",
-  "content-length",
-  "x-forwarded-for",
-  "x-forwarded-proto",
-  "x-amzn-trace-id",
-];
-
 describe("webtrigger module", () => {
-  describe("extractClientHeaders", () => {
-    it("should extract only client-relevant headers from a request", () => {
-      const extracted = extractClientHeaders(sampleEvent);
-
-      // Verify it includes client headers
-      expect(extracted).toHaveProperty("user-agent");
-      expect(extracted).toHaveProperty("atl-traceid");
-      expect(extracted).toHaveProperty("atl-edge-true-client-ip");
-      expect(extracted).toHaveProperty("atl-edge-ip-tags");
-    });
-
-    it("should exclude server and infrastructure headers", () => {
-      const extracted = extractClientHeaders(sampleEvent);
-
-      for (const header of INFRASTRUCTURE_HEADERS) {
-        expect(extracted).not.toHaveProperty(header);
-      }
-    });
-
-    it("should return empty object when no client headers are present", () => {
-      const eventWithoutClientHeaders: WebtriggerEvent = {
-        ...sampleEvent,
-        headers: {
-          "content-type": ["application/json"],
-          "content-length": ["100"],
-        },
-      };
-
-      const extracted = extractClientHeaders(eventWithoutClientHeaders);
-      expect(extracted).toEqual({});
-    });
-
-    it("should preserve header array values", () => {
-      const extracted = extractClientHeaders(sampleEvent);
-
-      // Headers should maintain their array format
-      expect(Array.isArray(extracted["user-agent"])).toBe(true);
-      expect(Array.isArray(extracted["atl-traceid"])).toBe(true);
-    });
-  });
-
   describe("buildSuccessResponse", () => {
     it("should build a response with default values", () => {
       const response = buildSuccessResponse();
@@ -312,25 +259,6 @@ describe("webtrigger module", () => {
     it("sample event has valid HTTP method", () => {
       const validMethods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
       expect(validMethods).toContain(sampleEvent.method);
-    });
-  });
-
-  describe("integration: extracting headers from real event", () => {
-    it("should extract client headers from sample event", () => {
-      const clientHeaders = extractClientHeaders(sampleEvent);
-
-      // Should have the key headers we care about
-      expect(clientHeaders["user-agent"]).toBeDefined();
-      expect(clientHeaders["atl-traceid"]).toBeDefined();
-      expect(clientHeaders["atl-edge-true-client-ip"]).toBeDefined();
-    });
-
-    it("should filter out all infrastructure headers from sample event", () => {
-      const clientHeaders = extractClientHeaders(sampleEvent);
-
-      for (const header of INFRASTRUCTURE_HEADERS) {
-        expect(clientHeaders[header]).toBeUndefined();
-      }
     });
   });
 });

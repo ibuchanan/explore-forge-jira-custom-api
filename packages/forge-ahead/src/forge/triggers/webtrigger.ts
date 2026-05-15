@@ -13,22 +13,16 @@
  * @see https://developer.atlassian.com/platform/forge/events-reference/web-trigger/
  */
 
-import type { ProblemDetails } from "../../util/errors";
 import type {
-  Headers,
-  HttpMethod,
-  HttpRequest,
-  HttpResponse,
-  QueryParameters,
-} from "../../util/http";
+  WebTriggerMethod,
+  WebTriggerRequest,
+  WebTriggerResponse,
+} from "@forge/api";
+import type { ProblemDetails } from "../../util/errors";
+import type { Headers, HttpRequest, QueryParameters } from "../../util/http";
 import type { CommonEvent, InstallContext } from "../function";
-
-// Note: We define our own WebtriggerEvent and WebtriggerResponse types instead of using
-// the types from @forge/api because our types are more complete:
-// - WebtriggerEvent extends CommonEvent to include context and contextToken
-// - WebtriggerResponse enforces all required fields (official types make them optional)
-// - We capture the undocumented "call" field that appears in real events
-// For reference, see @forge/api types: WebTriggerRequest, WebTriggerResponse
+import { truncateEvents } from "../logging";
+import type { JSONValue } from "../types";
 
 /**
  * WebTrigger request event
@@ -51,9 +45,18 @@ import type { CommonEvent, InstallContext } from "../function";
  * };
  * ```
  */
-export interface WebtriggerEvent extends CommonEvent, HttpRequest {
+export interface WebtriggerEvent
+  extends CommonEvent,
+    HttpRequest,
+    WebTriggerRequest {
   /** HTTP method (GET, POST, PUT, DELETE, PATCH, etc.) */
-  method: HttpMethod;
+  method: WebTriggerMethod;
+
+  /** Raw request body as a string. */
+  body: string;
+
+  /** Request path (e.g., "/webhook" or "/api/v1/resource") */
+  path: string;
 
   /** HTTP headers from the request (header names are lowercase) */
   headers: Headers;
@@ -61,105 +64,11 @@ export interface WebtriggerEvent extends CommonEvent, HttpRequest {
   /** Query parameters from the URL (?key=value) */
   queryParameters: QueryParameters;
 
-  /** Request path (e.g., "/webhook" or "/api/v1/resource") */
-  path: string;
-
   /**
    * Undocumented field that appears in real events
    * Contains the function key that was invoked
    */
   call?: { functionKey: string };
-}
-
-/**
- * WebTrigger response object
- *
- * This interface represents the HTTP response your WebTrigger handler returns.
- * All fields are required except body, which can be omitted for 204 No Content responses.
- *
- * The Forge platform recognizes:
- * - Status code 204 as success (no content)
- * - Status codes in the 500 series as errors
- * - All other 2xx codes as success
- *
- * @see https://developer.atlassian.com/platform/forge/events-reference/web-trigger/#response
- *
- * @example
- * ```typescript
- * // Success response
- * const response: WebtriggerResponse = {
- *   body: JSON.stringify({ message: "OK" }),
- *   headers: { "Content-Type": ["application/json"] },
- *   statusCode: 200,
- *   statusText: "OK"
- * };
- *
- * // No content response
- * const response: WebtriggerResponse = {
- *   headers: {},
- *   statusCode: 204,
- *   statusText: "No Content"
- * };
- * ```
- */
-/**
- * WebTrigger response object.
- *
- * Extends {@link HttpResponse} with the `statusText` field required by the
- * Forge webtrigger platform contract. The `headers` field uses multi-value
- * {@link HttpHeaders} (matching the Forge webtrigger spec), and `body` is
- * optional to allow 204 No Content responses.
- */
-export interface WebtriggerResponse extends HttpResponse {
-  /** HTTP status text that provides context to the status code. */
-  statusText?: string;
-}
-
-/**
- * Extract client-relevant headers from a WebTrigger request
- *
- * Filters the request headers to include only those relevant to the client/request,
- * excluding infrastructure and server headers. This is useful for logging, tracing,
- * and forwarding requests while maintaining request context.
- *
- * Extracted headers:
- * - `user-agent`: Client software making the request
- * - `atl-traceid`: Unique Atlassian trace ID for this request (use for distributed tracing)
- * - `atl-edge-true-client-ip`: Originating client IP address
- * - `atl-edge-ip-tags`: IP classification tags (e.g., enterprise, residential)
- *
- * Excluded headers (infrastructure):
- * - host, content-type, content-length
- * - x-forwarded-*, x-amzn-*
- * - All other server/infrastructure headers
- *
- * @param request - The WebTrigger request event
- * @returns Headers object containing only client-relevant headers
- *
- * @example
- * ```typescript
- * export const handler: WebtriggerFunction = (request, context) => {
- *   const clientHeaders = extractClientHeaders(request);
- *   const traceId = clientHeaders["atl-traceid"]?.[0] || "unknown";
- *
- *   console.log(`[${traceId}] Request from ${clientHeaders["user-agent"]?.[0]}`);
- *
- *   return buildSuccessResponse({ traceId });
- * };
- * ```
- */
-export function extractClientHeaders(request: WebtriggerEvent): Headers {
-  const clientHeaders = [
-    "user-agent",
-    "atl-traceid",
-    "atl-edge-true-client-ip",
-    "atl-edge-ip-tags",
-  ];
-  return Object.fromEntries(
-    Object.entries(request.headers).filter(([key, _]) =>
-      clientHeaders.includes(key),
-    ),
-  );
 }
 
 /**
@@ -180,7 +89,7 @@ export function buildSuccessResponse(
   message: object = { message: "OK" },
   statusCode: number = 200,
   statusText: string = "OK",
-): WebtriggerResponse {
+): WebTriggerResponse {
   return {
     body: JSON.stringify(message),
     headers: { "Content-Type": ["application/json"] },
@@ -206,13 +115,42 @@ export function buildSuccessResponse(
  * }
  * ```
  */
-export function buildErrorResponse(error: ProblemDetails): WebtriggerResponse {
+export function buildErrorResponse(error: ProblemDetails): WebTriggerResponse {
   return {
     body: JSON.stringify(error),
     headers: { "Content-Type": ["application/json"] },
     statusCode: error.status,
     statusText: error.title,
   };
+}
+
+/**
+ * Safely log an incoming `webtrigger` request at debug level.
+ *
+ * Uses {@link truncateEvents} to mask `headers` and any `contextToken`
+ * fields before logging, preventing accidental credential leaks.
+ *
+ * @param req - The incoming {@link WebtriggerEvent}
+ * @param label - Optional label prefix (e.g. the trigger name)
+ *
+ * @example
+ * ```typescript
+ * export const handler: WebtriggerFunction = (request, context) => {
+ *   logWebtriggerRequest(request, "myTrigger");
+ *   // Debug: myTrigger request: {"method":"POST","path":"/...","body":"..."}
+ *   return buildSuccessResponse();
+ * };
+ * ```
+ */
+export function logWebtriggerRequest(
+  req: WebtriggerEvent,
+  label?: string,
+): void {
+  const prefix = label ? `${label} request` : "Request";
+  console.debug(
+    `${prefix}:`,
+    JSON.stringify(truncateEvents(req as unknown as JSONValue)),
+  );
 }
 
 /**
@@ -259,4 +197,4 @@ export function buildErrorResponse(error: ProblemDetails): WebtriggerResponse {
 export type WebtriggerFunction = (
   request: WebtriggerEvent,
   context: InstallContext,
-) => WebtriggerResponse | Promise<WebtriggerResponse>;
+) => WebTriggerResponse | Promise<WebTriggerResponse>;
