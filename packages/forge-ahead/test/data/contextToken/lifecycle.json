@@ -1,0 +1,22 @@
+{
+  "context": {
+    "cloudId": "639c4c97-0caf-459b-bc27-da6250725163",
+    "moduleKey": "trigger-lifecycle"
+  },
+  "accountId": "712020:bed59aa6-01a2-437a-9884-3f04cca9199b",
+  "extensionId": "ari:cloud:ecosystem::extension/80cf424b-14e2-4b82-adb5-e0f6eedc5059/d797e92b-a31d-4daf-b6d0-2c17d041bc69/static/trigger-lifecycle",
+  "contextIds": [
+    "ari:cloud:jira:639c4c97-0caf-459b-bc27-da6250725163:workspace/70a57a2a-dec5-4646-abca-9fa753963536"
+  ],
+  "appId": "80cf424b-14e2-4b82-adb5-e0f6eedc5059",
+  "appVersion": "2.4.0",
+  "extensionType": "core:trigger",
+  "unlicensed": false,
+  "installationId": "b2b34761-252b-4c5a-a599-b3da55c61778",
+  "iss": "forge/context-token",
+  "aud": "forge",
+  "iat": 1760999547,
+  "nbf": 1760999547,
+  "exp": 1761000447,
+  "jti": "3d9e0c540f6ad9cca7ea8e9c2083c2a025bd9368"
+}

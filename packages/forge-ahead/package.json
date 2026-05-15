@@ -1,0 +1,82 @@
+{
+  "name": "forge-ahead",
+  "version": "0.2.0",
+  "private": true,
+  "description": "An experimental library of tools to make working with Atlassian Forge just a little better.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./errors": "./dist/util/errors.mjs",
+    "./config": "./dist/config/index.mjs",
+    "./rovo": "./dist/rovo/index.mjs",
+    "./remote": "./dist/forge/remote/index.mjs",
+    "./remote/jwt": "./dist/forge/remote/jwt.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "typesVersions": {
+    "*": {
+      "errors": [
+        "./dist/util/errors.d.mts"
+      ],
+      "config": [
+        "./dist/config/index.d.mts"
+      ],
+      "rovo": [
+        "./dist/rovo/index.d.mts"
+      ],
+      "remote": [
+        "./dist/forge/remote/index.d.mts"
+      ],
+      "remote/jwt": [
+        "./dist/forge/remote/jwt.d.mts"
+      ]
+    }
+  },
+  "bin": {
+    "actiontypes": "./dist/actiontypes.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "changelog": "git cliff",
+    "check": "npm run test && npm run lint && npm run format:check && npm run typecheck",
+    "check:arch": "vitest test/architecture.test.ts",
+    "clean": "rm -rf ./dist",
+    "dev": "tsdown --watch",
+    "format": "biome format --write",
+    "format:check": "biome format",
+    "generate": "echo 'Not implemented'",
+    "generate:openapi": "echo 'Not implemented'",
+    "generate:rovo": "echo 'Not implemented'",
+    "lint": "npm run lint:check",
+    "lint:check": "biome lint",
+    "lint:fix": "biome lint --write",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build && npm test",
+    "preview": "echo 'Not implemented'",
+    "start": "echo 'Not implemented'",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "todo": "grep -rn 'TODO' --exclude='package.json' . --color=auto || echo 'No TODOs found!'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@forge/api": "^7.1",
+    "@forge/kvs": "^1.6",
+    "jose": "^6.2",
+    "neverthrow": "^8.2",
+    "yaml": "^2.9"
+  },
+  "devDependencies": {
+    "@types/node": "^25.7",
+    "@vitest/coverage-v8": "^4.1",
+    "archunit": "^2.3",
+    "tsdown": "^0.22",
+    "vitest": "^4.1"
+  }
+}

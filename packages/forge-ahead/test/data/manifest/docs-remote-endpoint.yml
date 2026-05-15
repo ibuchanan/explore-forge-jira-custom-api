@@ -1,0 +1,33 @@
+# https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-action/#example-using-a-forge-remote-endpoint
+modules:
+  action:
+    - key: log-time
+      endpoint: logTime
+      name: Log time
+      actionVerb: CREATE
+      description: |
+        Log some time for the user against a Jira issue
+      inputs:
+        issueKey:
+          title: Jira Issue Key
+          type: string
+          required: true
+          description: "The jira issue to log time against"
+        time:
+          title: Time to log in minutes
+          type: integer
+          required: true
+          description: "The number of minutes to log"
+  endpoint:
+    - key: logTime
+      remote: timesheetapp
+      route:
+        path: log-time
+      auth:
+        appUserToken:
+          enabled: true
+        appSystemToken:
+          enabled: false
+remote:
+  - key: timesheetapp
+    baseUrl: "https://backend.timesheetapp.com"

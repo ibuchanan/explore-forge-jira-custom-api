@@ -34,9 +34,12 @@ yarn-error.log*
 integration/.env.hurl
 !integration/.env.hurl.example
 .turbo/
+dist/
+coverage/
 .yarn/*
 !.yarn/releases
 !.yarn/plugins
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
+/.cocoindex_code/

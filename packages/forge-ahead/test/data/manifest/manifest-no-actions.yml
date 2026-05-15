@@ -1,0 +1,4 @@
+modules:
+  function:
+    - key: some_function
+      handler: index.handler

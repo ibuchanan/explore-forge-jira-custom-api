@@ -2,63 +2,39 @@
   "name": "explore-forge-jira-custom-api",
   "version": "0.0.0",
   "private": true,
+  "description": "Exploration Forge App for a Jira custom REST API",
   "license": "Apache-2.0",
-  "main": "dist/index.mjs",
-  "types": "dist/index.d.mts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
-    }
+  "packageManager": "npm@10.9.0",
+  "engines": {
+    "node": "24"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc",
-    "changelog": "git cliff",
-    "check": "npm run test && npm run lint && npm run format:check && npm run typecheck",
-    "check-hurl": "hurl --version || (echo 'Error: Hurl is not installed. Visit https://hurl.dev to install.' && exit 1)",
-    "clean": "rm -rf ./dist",
-    "dev": "tsdown --watch",
-    "forge:scopes": "forge custom-scopes create --environment development",
-    "forge:deploy": "source .env && forge deploy --environment development",
-    "forge:install": "source .env && forge install --site \"$SITENAME.atlassian.net\" --product $PRODUCT --environment development --non-interactive",
-    "forge:uninstall": "source .env && forge uninstall --site \"$SITENAME.atlassian.net\" --product $PRODUCT",
-    "forge:upgrade": "source .env && forge install --upgrade --site \"$SITENAME.atlassian.net\" --product $PRODUCT --environment development --non-interactive",
-    "format": "biome format --write",
-    "format:check": "biome format",
-    "generate": "npm run generate:openapi && npm run generate:rovo",
-    "generate:openapi": "openapi-typescript",
-    "generate:rovo": "echo 'Not implemented'",
-    "lint": "npm run lint:check && forge lint",
-    "lint:check": "biome lint",
-    "lint:fix": "biome lint --write",
-    "prepare": "echo 'Not implemented'",
-    "preview": "echo 'Not implemented'",
-    "start": "echo 'Not implemented'",
-    "test": "vitest run",
-    "test:api": "npm run check-hurl && hurl --test $(test -f integration/.env.hurl && echo '--variables-file integration/.env.hurl') --glob 'integration/**/*.hurl'",
-    "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest watch",
-    "todo": "grep -rn 'TODO' --exclude='package.json' . --color=auto || echo 'No TODOs found!'",
-    "typecheck": "tsc --noEmit"
+    "build": "turbo run build",
+    "changelog": "turbo run changelog",
+    "check": "turbo run check",
+    "clean": "turbo run clean",
+    "dev": "turbo run dev",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check",
+    "forge:deploy": "turbo run forge:deploy --filter=forge-app",
+    "forge:install": "turbo run forge:install --filter=forge-app",
+    "forge:uninstall": "turbo run forge:uninstall --filter=forge-app",
+    "forge:upgrade": "turbo run forge:upgrade --filter=forge-app",
+    "forge:scopes": "turbo run forge:scopes --filter=forge-app",
+    "generate": "turbo run generate",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "typecheck": "turbo run typecheck"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.15",
-    "@forge/api": "^7.1",
-    "@forge/bridge": "^5.16",
-    "@forge/react": "^11.15",
-    "@forge/resolver": "^1.8",
-    "@types/node": "*",
-    "@types/react": "18",
-    "archunit": "*",
-    "git-cliff": "*",
-    "openapi-typescript": "*",
-    "react": "^18.3",
-    "tsx": "*",
-    "typescript": "5",
-    "vitest": "*",
-    "yaml": "^2.9"
-  },
-  "dependencies": {
-    "zod": "^3.24"
+    "@biomejs/biome": "^2.4.15",
+    "turbo": "*",
+    "typescript": "^5"
   }
 }

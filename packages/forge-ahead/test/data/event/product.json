@@ -1,0 +1,93 @@
+{
+  "issue": {
+    "id": "65964",
+    "key": "MOBL-89",
+    "fields": {
+      "summary": "Floo the bits",
+      "issuetype": {
+        "self": "https://one-atlas-iire.atlassian.net/rest/api/3/issuetype/10022",
+        "id": "10022",
+        "description": "Functionality or a feature expressed as a user goal.",
+        "iconUrl": "https://one-atlas-iire.atlassian.net/rest/api/2/universal_avatar/view/type/issuetype/avatar/10315?size=medium",
+        "name": "Story",
+        "subtask": false,
+        "avatarId": 10315,
+        "hierarchyLevel": 0
+      },
+      "creator": { "accountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0" },
+      "created": "2025-10-15T15:02:27.541-0400",
+      "project": {
+        "self": "https://one-atlas-iire.atlassian.net/rest/api/3/project/10010",
+        "id": "10010",
+        "key": "MOBL",
+        "name": "Mobile Dev",
+        "projectTypeKey": "software",
+        "simplified": false,
+        "avatarUrls": {
+          "48x48": "https://one-atlas-iire.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10410",
+          "24x24": "https://one-atlas-iire.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10410?size=small",
+          "16x16": "https://one-atlas-iire.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10410?size=xsmall",
+          "32x32": "https://one-atlas-iire.atlassian.net/rest/api/3/universal_avatar/view/type/project/avatar/10410?size=medium"
+        },
+        "projectCategory": {
+          "self": "https://one-atlas-iire.atlassian.net/rest/api/3/projectCategory/10000",
+          "id": "10000",
+          "description": "One Atlassian configured demo data project",
+          "name": "One Atlassian"
+        }
+      },
+      "reporter": {
+        "accountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0"
+      },
+      "assignee": { "accountId": "60ad2eb506bf0c006a432a17" },
+      "updated": "2025-10-15T15:02:27.639-0400",
+      "status": {
+        "self": "https://one-atlas-iire.atlassian.net/rest/api/3/status/10000",
+        "description": "",
+        "iconUrl": "https://one-atlas-iire.atlassian.net/",
+        "name": "To Do",
+        "id": "10000",
+        "statusCategory": {
+          "self": "https://one-atlas-iire.atlassian.net/rest/api/3/statuscategory/2",
+          "id": 2,
+          "key": "new",
+          "colorName": "blue-gray",
+          "name": "To Do"
+        }
+      }
+    }
+  },
+  "atlassianId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0",
+  "associatedUsers": [
+    { "accountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0" }
+  ],
+  "comment": {
+    "id": "84796",
+    "author": { "accountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0" },
+    "body": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [{ "type": "text", "text": "Adding a comment." }]
+        }
+      ]
+    },
+    "updateAuthor": {
+      "accountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0"
+    },
+    "created": "2025-10-21T09:10:14.420-0400",
+    "updated": "2025-10-21T09:10:14.420-0400",
+    "jsdPublic": true
+  },
+  "eventType": "avi:jira:commented:issue",
+  "selfGenerated": false,
+  "permissions": { "scopes": ["read:me", "read:jira-user", "read:jira-work"] },
+  "context": {
+    "cloudId": "639c4c97-0caf-459b-bc27-da6250725163",
+    "moduleKey": "comment-trigger",
+    "userAccess": { "enabled": false }
+  },
+  "contextToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvcmdlL2NvbnRleHQtdG9rZW4vd2YtMmY1ZjJiYTMtZGI2OS00ODQxLTlkNjMtNjczOTJhZjk3YjcxIn0.eyJjb250ZXh0Ijp7ImNsb3VkSWQiOiI2MzljNGM5Ny0wY2FmLTQ1OWItYmMyNy1kYTYyNTA3MjUxNjMiLCJtb2R1bGVLZXkiOiJjb21tZW50LXRyaWdnZXIifSwiYWNjb3VudElkIjoiNzEyMDIwOmJlZDU5YWE2LTAxYTItNDM3YS05ODg0LTNmMDRjY2E5MTk5YiIsImV4dGVuc2lvbklkIjoiYXJpOmNsb3VkOmVjb3N5c3RlbTo6ZXh0ZW5zaW9uLzgwY2Y0MjRiLTE0ZTItNGI4Mi1hZGI1LWUwZjZlZWRjNTA1OS9kNzk3ZTkyYi1hMzFkLTRkYWYtYjZkMC0yYzE3ZDA0MWJjNjkvc3RhdGljL2NvbW1lbnQtdHJpZ2dlciIsImNvbnRleHRJZHMiOlsiYXJpOmNsb3VkOmppcmE6NjM5YzRjOTctMGNhZi00NTliLWJjMjctZGE2MjUwNzI1MTYzOndvcmtzcGFjZS83MGE1N2EyYS1kZWM1LTQ2NDYtYWJjYS05ZmE3NTM5NjM1MzYiXSwiYXBwSWQiOiI4MGNmNDI0Yi0xNGUyLTRiODItYWRiNS1lMGY2ZWVkYzUwNTkiLCJhcHBWZXJzaW9uIjoiMy4wLjAiLCJleHRlbnNpb25UeXBlIjoiY29yZTp0cmlnZ2VyIiwidW5saWNlbnNlZCI6ZmFsc2UsImluc3RhbGxhdGlvbklkIjoiMmM5YjEyODktYTA1NC00YjdiLWI0NjEtODc3N2ZlYmM5NjI1IiwiaXNzIjoiZm9yZ2UvY29udGV4dC10b2tlbiIsImF1ZCI6ImZvcmdlIiwiaWF0IjoxNzYxMDUyMjE1LCJuYmYiOjE3NjEwNTIyMTUsImV4cCI6MTc2MTA1MzExNSwianRpIjoiMjdkM2YyZTlkOWZhNDZjZDE2MDQ2MDk3OWYwN2EyZGQ5NDBlZTBjZiJ9.L_hI4D8M_zN0jyx7vwiKc8RI6dT9SGGL_nKKw37IVvPeFNnf0ROiDXhovgh55CyCwugprlv0CiEEgBGBfCYGyVCpKTJ7yNPwyGEQ7_pc7RHnMHkHFQ6uqwGqEKz_OAUkCnGVEghR4RsNld-kN9qPmx7b9QgUA5g_x5-4K4mFTuHQ8FI_aU5Tmi9Cs1Iz70DkgK4NpJqBHrS07sX8j0hO0ZoxNZznkJ3BseiO3NaIrHE7O-5Yx2Cv9AVOZcJuMFeFQsKbUvBQ9GfAcOK7NgAcYaChJZce7oaMQxV8GdBBeT8vUGlWousqLNbd4nu_kMNOjfuaQjLs7aWuBpShAOty3Q"
+}

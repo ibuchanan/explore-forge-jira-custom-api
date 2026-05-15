@@ -1,0 +1,12 @@
+{
+  "installContext": "ari:cloud:jira::site/639c4c97-0caf-459b-bc27-da6250725163",
+  "installation": {
+    "ari": { "installationId": "2c9b1289-a054-4b7b-b461-8777febc9625" },
+    "contexts": [
+      {
+        "cloudId": "639c4c97-0caf-459b-bc27-da6250725163",
+        "workspaceId": "70a57a2a-dec5-4646-abca-9fa753963536"
+      }
+    ]
+  }
+}

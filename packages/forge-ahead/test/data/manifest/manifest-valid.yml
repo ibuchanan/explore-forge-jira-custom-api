@@ -1,0 +1,39 @@
+modules:
+  action:
+    - key: create_task
+      name: Create Task
+      description: Create a new task
+      actionVerb: create
+      function: createTask
+      inputs:
+        title:
+          title: Task Title
+          description: The title of the task
+          required: true
+          type: string
+        description:
+          title: Description
+          description: Task description
+          required: false
+          type: string
+        priority:
+          title: Priority
+          description: Task priority level
+          required: false
+          type: number
+    - key: complete_task
+      name: Complete Task
+      description: Mark a task as complete
+      actionVerb: complete
+      function: completeTask
+      inputs:
+        taskId:
+          title: Task ID
+          description: The ID of the task to complete
+          required: true
+          type: string
+        notify:
+          title: Send Notification
+          description: Whether to send a notification
+          required: false
+          type: boolean

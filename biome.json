@@ -6,17 +6,30 @@
     "useIgnoreFile": true,
     "defaultBranch": "main"
   },
+  "files": {
+    "ignoreUnknown": false
+  },
   "formatter": {
+    "enabled": true,
     "indentStyle": "space"
   },
-  "files": {
-    "includes": [
-      "**",
-      "!.projen",
-      "!src/jira-platform-2/types.ts",
-      "!src/jira-platform-3/types.ts",
-      "!src/jira-servicedesk/types.ts",
-      "!src/jira-software/types.ts"
-    ]
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }

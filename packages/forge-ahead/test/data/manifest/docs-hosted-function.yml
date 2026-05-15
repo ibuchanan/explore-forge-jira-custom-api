@@ -1,0 +1,18 @@
+# https://developer.atlassian.com/platform/forge/manifest-reference/modules/rovo-action/#example-using-a-hosted-forge-function-
+modules:
+  action:
+    - key: fetch-timesheet-by-date
+      name: Fetch timesheet by date
+      function: getTimesheetByDate
+      actionVerb: GET
+      description: |
+        Retrieve a user's timesheet based on a date
+      inputs:
+        timesheetDate:
+          title: Timesheet Date
+          type: string
+          required: true
+          description: "The date that the user wants a timesheet for"
+  function:
+    - key: getTimesheetByDate
+      handler: index.getTimesheetByDate

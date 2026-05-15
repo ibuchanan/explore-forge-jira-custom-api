@@ -1,0 +1,20 @@
+{
+  "id": "b2b34761-252b-4c5a-a599-b3da55c61778",
+  "context": {
+    "cloudId": "639c4c97-0caf-459b-bc27-da6250725163",
+    "moduleKey": "trigger-lifecycle",
+    "userAccess": { "enabled": false }
+  },
+  "installerAccountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0",
+  "app": {
+    "id": "80cf424b-14e2-4b82-adb5-e0f6eedc5059",
+    "name": "explore-forge-myself",
+    "ownerAccountId": "557057:3d0e64ae-35d3-490d-b6d9-d81c981476d0",
+    "version": "2.4.0"
+  },
+  "environment": { "id": "d797e92b-a31d-4daf-b6d0-2c17d041bc69" },
+  "eventType": "avi:forge:installed:app",
+  "selfGenerated": false,
+  "permissions": { "scopes": ["read:jira-user"] },
+  "contextToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImZvcmdlL2NvbnRleHQtdG9rZW4vd2YtYjJlNjAzYzEtY2MzMC00YzU4LThlYzEtNjg0MzFhOGU4NDk0In0.eyJjb250ZXh0Ijp7ImNsb3VkSWQiOiI2MzljNGM5Ny0wY2FmLTQ1OWItYmMyNy1kYTYyNTA3MjUxNjMiLCJtb2R1bGVLZXkiOiJ0cmlnZ2VyLWxpZmVjeWNsZSJ9LCJhY2NvdW50SWQiOiI3MTIwMjA6YmVkNTlhYTYtMDFhMi00MzdhLTk4ODQtM2YwNGNjYTkxOTliIiwiZXh0ZW5zaW9uSWQiOiJhcmk6Y2xvdWQ6ZWNvc3lzdGVtOjpleHRlbnNpb24vODBjZjQyNGItMTRlMi00YjgyLWFkYjUtZTBmNmVlZGM1MDU5L2Q3OTdlOTJiLWEzMWQtNGRhZi1iNmQwLTJjMTdkMDQxYmM2OS9zdGF0aWMvdHJpZ2dlci1saWZlY3ljbGUiLCJjb250ZXh0SWRzIjpbImFyaTpjbG91ZDpqaXJhOjYzOWM0Yzk3LTBjYWYtNDU5Yi1iYzI3LWRhNjI1MDcyNTE2Mzp3b3Jrc3BhY2UvNzBhNTdhMmEtZGVjNS00NjQ2LWFiY2EtOWZhNzUzOTYzNTM2Il0sImFwcElkIjoiODBjZjQyNGItMTRlMi00YjgyLWFkYjUtZTBmNmVlZGM1MDU5IiwiYXBwVmVyc2lvbiI6IjIuNC4wIiwiZXh0ZW5zaW9uVHlwZSI6ImNvcmU6dHJpZ2dlciIsInVubGljZW5zZWQiOmZhbHNlLCJpbnN0YWxsYXRpb25JZCI6ImIyYjM0NzYxLTI1MmItNGM1YS1hNTk5LWIzZGE1NWM2MTc3OCIsImlzcyI6ImZvcmdlL2NvbnRleHQtdG9rZW4iLCJhdWQiOiJmb3JnZSIsImlhdCI6MTc2MDk5OTU0NywibmJmIjoxNzYwOTk5NTQ3LCJleHAiOjE3NjEwMDA0NDcsImp0aSI6IjNkOWUwYzU0MGY2YWQ5Y2NhN2VhOGU5YzIwODNjMmEwMjViZDkzNjgifQ.VRgOnTEA6NGY7EZd6uG_tgJUt5FbJRdd9rhW2efweE0MUG5J3slkHt3oFALBLPyC2HKmT8ZWIlJlYW1KajT7vILuzKETORgDXeCoRedIppWYq-LlB44clsUAosR7f51ELywWg0heL6qN7FjDa2GNKI3e3k9mwGzrFicz4GkW08lCEN4PdVltx_g4-y6W0iugpUtoP0xAodfOPZpt-x0w8Yj6G738OAnVJNGVs8srIP3DsJ0UsupMrMozmzx_3PmbG8UZPMsKM4RTcyS4yE2QPzv8wzooBfjp5HiCe4zuWU3g40D3qGXSBE2hRZ-9TiA0mZQS1dJm_bFO7JZwqff9AA"
+}
