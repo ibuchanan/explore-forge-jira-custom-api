@@ -121,7 +121,7 @@ export function isJwtExpired(payload: JwtPayload): boolean {
  * Retrieves the key ID (kid) from JWT header
  * This is needed to fetch the correct public key from JWKS endpoint
  */
-export function getKeyIdFromToken(token: string): string {
+export function getKeyIdFromToken(token: string): string | undefined {
   try {
     const parsed = parseJwt(token);
     return parsed.header.kid;

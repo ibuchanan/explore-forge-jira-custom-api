@@ -7,7 +7,14 @@
     "defaultBranch": "main"
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": [
+      "**/*",
+      "!apps/forge/src/jira-platform-2/types.ts",
+      "!apps/forge/src/jira-platform-3/types.ts",
+      "!apps/forge/src/jira-servicedesk/types.ts",
+      "!apps/forge/src/jira-software/types.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

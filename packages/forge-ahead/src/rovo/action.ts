@@ -80,7 +80,7 @@ export type Actions = Array<Action>;
  /**
  * @internal
  */
-interface RovoProductDetail {
+export interface RovoProductDetail {
   /** URL of the product resource */
   url: string;
   /** Type of the resource (e.g., "issue", "page", "project") */
@@ -115,7 +115,7 @@ export interface RovoContext extends EventContext {
  *
  * @internal
  */
-type ActionInput = Record<string, string | bigint | number | boolean>;
+export type ActionInput = Record<string, string | bigint | number | boolean>;
 
 /**
  * Event structure with Rovo-specific context

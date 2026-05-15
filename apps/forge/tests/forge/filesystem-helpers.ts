@@ -22,6 +22,10 @@ export function directoryExists(dir: string): boolean {
  * @returns Array of absolute file paths to .ts and .tsx files
  */
 export function getAllTypeScriptFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+
   const files: string[] = [];
 
   function walk(currentPath: string) {

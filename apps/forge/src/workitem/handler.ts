@@ -14,46 +14,17 @@
  * @see {@link https://developer.atlassian.com/platform/forge/app-rest-apis/|Forge App REST APIs}
  */
 
-import { StandardError } from "forge-ahead";
-import type { ProblemDetails } from "forge-ahead";
+import {
+  type ApiRouteRequest,
+  type ApiRouteResponse,
+  json,
+  logApiRouteRequest,
+  problemJson,
+  type JSONValue,
+} from "forge-ahead";
 import { resolveFieldNames, translateKeys } from "./field-resolver";
 import { createIssue, JiraApiError } from "./jira-client";
-import type { WorkitemResponse } from "./types";
 import { WorkitemRequestSchema } from "./types";
-
-/** Shape of an incoming Forge App REST API request */
-interface ApiRouteRequest {
-  body?: string;
-  headers?: Record<string, string>;
-  method?: string;
-  path?: string;
-  queryParameters?: Record<string, string[]>;
-}
-
-/** Shape of a Forge App REST API response */
-interface ApiRouteResponse {
-  statusCode: number;
-  headers?: Record<string, string>;
-  body: string;
-}
-
-function json(
-  statusCode: number,
-  body: WorkitemResponse | ProblemDetails,
-): ApiRouteResponse {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
-
-function problemJson(statusCode: number, detail: string): ApiRouteResponse {
-  return json(
-    statusCode,
-    StandardError.getOrDefault(statusCode).error(detail).error,
-  );
-}
 
 /**
  * Forge App REST API handler for POST /workitem.
@@ -64,6 +35,8 @@ function problemJson(statusCode: number, detail: string): ApiRouteResponse {
 export async function handleWorkitem(
   req: ApiRouteRequest,
 ): Promise<ApiRouteResponse> {
+  logApiRouteRequest(req, "workitem");
+
   // 1. Parse body
   let parsed: unknown;
   try {
@@ -96,7 +69,7 @@ export async function handleWorkitem(
     const result = await resolveFieldNames(project, issueType, namesToResolve);
 
     if (result.isErr()) {
-      return json(result.error.status, result.error);
+      return json(result.error.status, result.error as unknown as JSONValue);
     }
 
     resolved = result.value;
@@ -128,13 +101,13 @@ export async function handleWorkitem(
   // 6. Create the issue
   try {
     const created = await createIssue(jiraBody);
-    return json(201, created);
+    return json(201, created as unknown as JSONValue);
   } catch (err) {
     if (err instanceof JiraApiError) {
       // Forward Jira's status + body faithfully (Jira's own error format)
       return {
         statusCode: err.status,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": ["application/json"] },
         body: err.body,
       };
     }

@@ -1,6 +1,10 @@
 // Atlassian Cloud utilities
 export { extractCloudId } from "./cloud/site";
 
+// Re-export apiRoute types and utilities
+export type { ApiRouteRequest, ApiRouteResponse } from "./api/apiRoute";
+export { json, logApiRouteRequest, problemJson } from "./api/apiRoute";
+
 // Re-export authentication utilities
 export { getAuthForEvent } from "./forge/auth";
 

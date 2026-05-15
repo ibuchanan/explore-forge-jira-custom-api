@@ -6,7 +6,7 @@
  * validation, error aggregation, translation, and Jira proxying.
  */
 
-import { err, ok, StandardError } from "forge-ahead";
+import { ok, StandardError } from "forge-ahead";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -278,7 +278,9 @@ describe("handleWorkitem — successful creation", () => {
   });
 
   it("omits update key when no update fields provided", async () => {
-    mockResolveFieldNames.mockResolvedValue(ok(new Map([["Summary", "summary"]])));
+    mockResolveFieldNames.mockResolvedValue(
+      ok(new Map([["Summary", "summary"]])),
+    );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     await handleWorkitem(

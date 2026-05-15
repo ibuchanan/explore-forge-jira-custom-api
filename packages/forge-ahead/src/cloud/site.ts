@@ -35,7 +35,7 @@ import { ok, type Result, StandardError } from "../util/errors";
  * ```
  */
 export function extractCloudId(
-  context: string,
+  context: unknown,
 ): Result<string, ProblemDetails> {
   if (!context || typeof context !== "string") {
     return StandardError.getOrDefault(400).error(

@@ -132,7 +132,7 @@ export function isJwtExpired(payload: JwtPayload): boolean {
  *
  * @throws When the token cannot be parsed.
  */
-export function getKeyIdFromToken(token: string): string {
+export function getKeyIdFromToken(token: string): string | undefined {
   try {
     const parsed = parseJwt(token);
     return parsed.header.kid;

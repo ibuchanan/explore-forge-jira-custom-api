@@ -52,7 +52,7 @@ describe("cloud/site", () => {
     });
 
     it("should return Err for non-string input", () => {
-      const result = extractCloudId(null as any);
+      const result = extractCloudId(null);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.status).toBe(400);

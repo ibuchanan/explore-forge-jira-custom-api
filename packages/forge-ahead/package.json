@@ -12,6 +12,7 @@
     "./rovo": "./dist/rovo/index.mjs",
     "./remote": "./dist/forge/remote/index.mjs",
     "./remote/jwt": "./dist/forge/remote/jwt.mjs",
+    "./api": "./dist/api/index.mjs",
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",
@@ -31,6 +32,9 @@
       ],
       "remote/jwt": [
         "./dist/forge/remote/jwt.d.mts"
+      ],
+      "api": [
+        "./dist/api/index.d.mts"
       ]
     }
   },

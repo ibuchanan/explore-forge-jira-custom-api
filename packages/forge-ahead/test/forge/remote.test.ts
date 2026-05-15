@@ -130,7 +130,7 @@ describe("forge/remote", () => {
       const keyId = getKeyIdFromToken(token);
 
       // JwtHeader requires kid, so this will be undefined when not present
-      expect(keyId as any).toBeUndefined();
+      expect(keyId).toBeUndefined();
     });
   });
 

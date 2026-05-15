@@ -13,8 +13,14 @@
  * @see https://developer.atlassian.com/platform/forge/events-reference/web-trigger/
  */
 
-import type { WebTriggerMethod } from "@forge/api";
 import type { ProblemDetails } from "../../util/errors";
+import type {
+  Headers,
+  HttpMethod,
+  HttpRequest,
+  HttpResponse,
+  QueryParameters,
+} from "../../util/http";
 import type { CommonEvent, InstallContext } from "../function";
 
 // Note: We define our own WebtriggerEvent and WebtriggerResponse types instead of using
@@ -25,43 +31,10 @@ import type { CommonEvent, InstallContext } from "../function";
 // For reference, see @forge/api types: WebTriggerRequest, WebTriggerResponse
 
 /**
- * HTTP headers as provided by the Forge platform
- *
- * Headers are stored as Record<string, string[]> where each header name maps
- * to an array of values. This allows multiple values for the same header.
- *
- * @example
- * ```typescript
- * const headers: Headers = {
- *   "content-type": ["application/json"],
- *   "user-agent": ["Mozilla/5.0..."],
- *   "set-cookie": ["session=abc", "tracking=xyz"]
- * };
- * ```
- */
-export type Headers = Record<string, string[]>;
-
-/**
- * Query parameters as provided by the Forge platform
- *
- * Query parameters are stored as Record<string, string[]> where each parameter
- * name maps to an array of values. This supports multiple values for the same parameter.
- *
- * @example
- * ```typescript
- * // URL: /webhook?tag=urgent&tag=bug&name=alice
- * const params: Parameters = {
- *   "tag": ["urgent", "bug"],
- *   "name": ["alice"]
- * };
- * ```
- */
-export type Parameters = Record<string, string[]>;
-/**
  * WebTrigger request event
  *
  * This interface represents an incoming HTTP request to a WebTrigger endpoint.
- * It extends CommonEvent to include Forge context and adds HTTP-specific properties.
+ * It extends CommonEvent to include Forge context and Request for HTTP properties.
  *
  * All WebTrigger handlers receive this event as their first parameter.
  *
@@ -78,18 +51,15 @@ export type Parameters = Record<string, string[]>;
  * };
  * ```
  */
-export interface WebtriggerEvent extends CommonEvent {
+export interface WebtriggerEvent extends CommonEvent, HttpRequest {
   /** HTTP method (GET, POST, PUT, DELETE, PATCH, etc.) */
-  method: WebTriggerMethod;
+  method: HttpMethod;
 
   /** HTTP headers from the request (header names are lowercase) */
   headers: Headers;
 
   /** Query parameters from the URL (?key=value) */
-  queryParameters: Parameters;
-
-  /** Request body as a string (parse as JSON if needed) */
-  body?: string;
+  queryParameters: QueryParameters;
 
   /** Request path (e.g., "/webhook" or "/api/v1/resource") */
   path: string;
@@ -132,18 +102,17 @@ export interface WebtriggerEvent extends CommonEvent {
  * };
  * ```
  */
-export interface WebtriggerResponse {
-  /** HTTP response body sent back to the caller (typically JSON string) */
-  body?: string;
-
-  /** HTTP headers to send back to the caller */
-  headers: Headers;
-
-  /** HTTP status code (200, 201, 400, 404, 500, etc.) */
-  statusCode: number;
-
-  /** HTTP status text that provides context to the status code */
-  statusText: string;
+/**
+ * WebTrigger response object.
+ *
+ * Extends {@link HttpResponse} with the `statusText` field required by the
+ * Forge webtrigger platform contract. The `headers` field uses multi-value
+ * {@link HttpHeaders} (matching the Forge webtrigger spec), and `body` is
+ * optional to allow 204 No Content responses.
+ */
+export interface WebtriggerResponse extends HttpResponse {
+  /** HTTP status text that provides context to the status code. */
+  statusText?: string;
 }
 
 /**

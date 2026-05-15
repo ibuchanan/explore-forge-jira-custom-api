@@ -11,14 +11,14 @@
  * @see {@link https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-types/#api-rest-api-3-issue-createmeta-projectidorkey-issuetypes-issuetypeid-get|Create meta fields}
  */
 
-import { StandardError, err, ok } from "forge-ahead";
+import { ok, StandardError } from "forge-ahead";
 import type { components } from "../jira-platform-3/types";
+import { getFieldsForIssueType, getIssueTypes } from "./jira-client";
 import type {
   FieldResolution,
   FieldResolutionError,
   FieldResolutionResult,
 } from "./types";
-import { getFieldsForIssueType, getIssueTypes } from "./jira-client";
 
 /**
  * Jira's createmeta field endpoint returns `clauseNames` in practice, but it is
