@@ -122,22 +122,24 @@ npm run test:coverage  # with coverage
 Integration tests use [Hurl](https://hurl.dev/):
 
 ```bash
-# In apps/forge — requires a deployed app and integration/.env.hurl
+# From the monorepo root — requires a deployed app and integration/.env.hurl
 npm run test:api
 ```
 
-Copy `apps/forge/integration/.env.hurl.example` to
-`apps/forge/integration/.env.hurl` and fill in your site URL and OAuth token
-before running integration tests.
+Copy `integration/.env.hurl.example` to `integration/.env.hurl` and fill in
+your app REST API base URL, OAuth client credentials, and OAuth refresh token
+before running integration tests. The Hurl suite exchanges the refresh token for
+a fresh bearer token at the start of each run.
 
 ## Project layout
 
 ```text
 apps/forge/
   src/workitem/     # Handlers, pipeline, field resolver, coercer, Jira client
-  src/frontend/     # Jira admin page (displays the app's base URL)
+  src/frontend/     # Jira admin page (displays app base URLs and account IDs)
   manifest.yml      # Forge module declarations and custom scopes
-  integration/      # Hurl integration test files
+
+integration/        # Hurl integration tests and local env example
 
 packages/forge-ahead/
   src/forge/        # Auth helpers, logging, manifest utilities, triggers
