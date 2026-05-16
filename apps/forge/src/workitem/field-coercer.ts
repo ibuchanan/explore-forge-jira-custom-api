@@ -271,6 +271,21 @@ function coerceSprint(
  * Coerces an array field by applying the appropriate item coercer to each element.
  * Returns the first error encountered per element, collecting all element errors.
  */
+/** Dispatch table for array item type → item coerce function. */
+type ItemCoerceFn = (
+  item: unknown,
+  fieldName: string,
+  meta: FieldMeta,
+) => CoercionResult;
+
+const ARRAY_ITEM_COERCERS: Record<string, ItemCoerceFn> = {
+  option: (v, n, m) => coerceOption(v, n, m),
+  user: (v, n) => coerceUser(v, n),
+  version: (v, n) => coerceVersion(v, n),
+  component: (v, n) => coerceComponent(v, n),
+  string: (v, n) => coerceString(v, n),
+};
+
 function coerceArray(
   callerValue: unknown,
   fieldName: string,
@@ -285,37 +300,20 @@ function coerceArray(
     );
   }
 
+  const itemCoerceFn = ARRAY_ITEM_COERCERS[itemsType ?? ""];
+  if (!itemCoerceFn) {
+    return coercionError(
+      fieldName,
+      "unsupported_type",
+      `'${fieldName}' uses array item type '${itemsType ?? "unknown"}' which is not supported by this API.`,
+    );
+  }
+
   const coercedItems: unknown[] = [];
   const errors: string[] = [];
 
   for (let i = 0; i < callerValue.length; i++) {
-    const item = callerValue[i];
-    let itemResult: CoercionResult;
-
-    switch (itemsType) {
-      case "option":
-        itemResult = coerceOption(item, fieldName, meta);
-        break;
-      case "user":
-        itemResult = coerceUser(item, fieldName);
-        break;
-      case "version":
-        itemResult = coerceVersion(item, fieldName);
-        break;
-      case "component":
-        itemResult = coerceComponent(item, fieldName);
-        break;
-      case "string":
-        itemResult = coerceString(item, fieldName);
-        break;
-      default:
-        return coercionError(
-          fieldName,
-          "unsupported_type",
-          `'${fieldName}' uses array item type '${itemsType ?? "unknown"}' which is not supported by this API.`,
-        );
-    }
-
+    const itemResult = itemCoerceFn(callerValue[i], fieldName, meta);
     if (!itemResult.ok) {
       errors.push(`[${i}]: ${itemResult.error.message}`);
     } else {
@@ -343,10 +341,37 @@ const CASCADING_SELECT_CUSTOM_KEY =
 // ---------------------------------------------------------------------------
 
 /**
+ * Dispatch table for schema type → coerce function.
+ * Each entry takes `(callerValue, fieldName, meta)` and returns `CoercionResult`.
+ * `meta` is passed to all so option/array coercers can access allowedValues.
+ */
+type CoerceFn = (
+  callerValue: unknown,
+  fieldName: string,
+  meta: FieldMeta,
+) => CoercionResult;
+
+const TYPE_COERCERS: Record<string, CoerceFn> = {
+  priority: (v, n) => coercePriority(v, n),
+  option: (v, n, m) => coerceOption(v, n, m),
+  user: (v, n) => coerceUser(v, n),
+  version: (v, n) => coerceVersion(v, n),
+  component: (v, n) => coerceComponent(v, n),
+  date: (v, n) => coerceDate(v, n),
+  datetime: (v, n) => coerceDatetime(v, n),
+  number: (v, n) => coerceNumber(v, n),
+  string: (v, n) => coerceString(v, n),
+  array: (v, n, m) => {
+    const { items } = (m.schema ?? {}) as { items?: string };
+    return coerceArray(v, n, m, items);
+  },
+};
+
+/**
  * Coerces a single field value using the field's schema metadata.
  *
- * Dispatches on `schema.type` (and `schema.custom` for custom fields),
- * falling back to `unsupported_type` for unknown types.
+ * Dispatches on `schema.custom` first (for sprint / cascading select),
+ * then on `schema.type` via the TYPE_COERCERS table.
  *
  * @param callerValue - The raw value from the caller's request
  * @param fieldName   - The caller's field name (for error messages)
@@ -365,11 +390,7 @@ export function coerceFieldValue(
     return ok(callerValue);
   }
 
-  const { type, items, custom } = schema as {
-    type?: string;
-    items?: string;
-    custom?: string;
-  };
+  const { type, custom } = schema as { type?: string; custom?: string };
 
   // Explicitly excluded: cascading select
   if (custom === CASCADING_SELECT_CUSTOM_KEY) {
@@ -385,34 +406,16 @@ export function coerceFieldValue(
     return coerceSprint(callerValue, fieldName, meta);
   }
 
-  switch (type) {
-    case "priority":
-      return coercePriority(callerValue, fieldName);
-    case "option":
-      return coerceOption(callerValue, fieldName, meta);
-    case "user":
-      return coerceUser(callerValue, fieldName);
-    case "version":
-      return coerceVersion(callerValue, fieldName);
-    case "component":
-      return coerceComponent(callerValue, fieldName);
-    case "date":
-      return coerceDate(callerValue, fieldName);
-    case "datetime":
-      return coerceDatetime(callerValue, fieldName);
-    case "number":
-      return coerceNumber(callerValue, fieldName);
-    case "string":
-      return coerceString(callerValue, fieldName);
-    case "array":
-      return coerceArray(callerValue, fieldName, meta, items);
-    default:
-      return coercionError(
-        fieldName,
-        "unsupported_type",
-        `'${fieldName}' uses type '${type ?? "unknown"}' which is not supported by this API.`,
-      );
+  const coerceFn = TYPE_COERCERS[type ?? ""];
+  if (coerceFn) {
+    return coerceFn(callerValue, fieldName, meta);
   }
+
+  return coercionError(
+    fieldName,
+    "unsupported_type",
+    `'${fieldName}' uses type '${type ?? "unknown"}' which is not supported by this API.`,
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -290,7 +290,7 @@ describe("handleWorkitemUpsert — creation path", () => {
       makeRequest({ ...VALID_UPSERT_BODY, dedup: jql }),
     );
 
-    expect(mockSearchIssues).toHaveBeenCalledWith(jql, 10);
+    expect(mockSearchIssues).toHaveBeenCalledWith(jql, 10, undefined);
   });
 });
 

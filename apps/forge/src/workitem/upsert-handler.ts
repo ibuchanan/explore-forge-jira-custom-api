@@ -27,15 +27,14 @@ import {
   buildErrorResponse,
   logApiRouteRequest,
 } from "forge-ahead";
+import { createIssue, JiraApiError, writeOtelProperty } from "./jira-client";
 import {
-  createIssue,
-  JiraApiError,
-  searchIssues,
-  writeOtelProperty,
-} from "./jira-client";
-import { parseBody, runPipeline } from "./pipeline";
+  buildUpsertResponse,
+  parseBody,
+  runDedupSearch,
+  runPipeline,
+} from "./pipeline";
 import { UpsertRequestSchema } from "./types";
-import type { UpsertResponse } from "./types";
 
 /**
  * Forge App REST API handler for POST /workitem/upsert.
@@ -77,42 +76,20 @@ export async function handleWorkitemUpsert(
   const pipeline = await runPipeline({ project, issueType, fields, update });
   if (!pipeline.ok) return pipeline.response;
 
-  // 6. Pre-creation dedup check — execute the caller's JQL
-  let matchKeys: string[];
-  try {
-    matchKeys = await searchIssues(dedup, 10);
-  } catch (err) {
-    if (err instanceof JiraApiError) {
-      return {
-        statusCode: err.status,
-        headers: { "Content-Type": ["application/json"] },
-        body: err.body,
-      };
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return buildErrorResponse(500, `Dedup search failed: ${message}`);
-  }
+  // 6. Pre-creation dedup check
+  const dedup_ = await runDedupSearch(dedup, project);
+  if (!dedup_.ok) return dedup_.response;
 
-  // 7. If duplicates found, skip creation and return matches
-  if (matchKeys.length > 0) {
-    const warnings = buildDedupWarnings(matchKeys, project);
-    const response: UpsertResponse = {
+  // 7. Duplicates found — skip creation
+  if (dedup_.matchKeys.length > 0) {
+    return buildUpsertResponse({
       created: false,
-      id: null,
-      key: null,
-      self: null,
-      matches: matchKeys,
-      warnings,
-    };
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": ["application/json"] },
-      body: JSON.stringify(response),
-    };
+      matches: dedup_.matchKeys,
+      warnings: dedup_.warnings,
+    });
   }
 
   // 8. No duplicates — create the issue
-  // fallow-ignore-next-line code-duplication
   let created: { id: string; key: string; self: string };
   try {
     created = await createIssue(pipeline.body);
@@ -133,33 +110,5 @@ export async function handleWorkitemUpsert(
     void writeOtelProperty(created.key, otel);
   }
 
-  const response: UpsertResponse = {
-    created: true,
-    id: created.id,
-    key: created.key,
-    self: created.self,
-    matches: [],
-    warnings: [],
-  };
-  return {
-    statusCode: 200,
-    headers: { "Content-Type": ["application/json"] },
-    body: JSON.stringify(response),
-  };
-}
-
-/**
- * Builds the warnings array for a dedup hit.
- * Warns when any match key belongs to a project other than the target.
- */
-function buildDedupWarnings(matchKeys: string[], project: string): string[] {
-  const otherProjectKeys = matchKeys.filter(
-    (key) => !key.toUpperCase().startsWith(`${project.toUpperCase()}-`),
-  );
-  if (otherProjectKeys.length > 0) {
-    return [
-      `Dedup query returned matches from other projects (e.g. ${otherProjectKeys[0]}) — verify your JQL is scoped correctly.`,
-    ];
-  }
-  return [];
+  return buildUpsertResponse({ created: true, ...created });
 }

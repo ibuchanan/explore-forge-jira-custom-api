@@ -19,6 +19,9 @@ import type { ValidationProblemDetails } from "forge-ahead";
 import { resolveFieldNames, translateKeys } from "./field-resolver";
 import type { FieldMeta } from "./field-coercer";
 import { coerceFields } from "./field-coercer";
+import type { AuthClient } from "./jira-client";
+import { JiraApiError, searchIssues } from "./jira-client";
+import type { UpsertResponse } from "./types";
 
 /** Input to the pipeline — the validated, schema-parsed request data. */
 export interface PipelineInput {
@@ -150,4 +153,110 @@ export function parseBody(
       response: buildErrorResponse(400, "Request body must be valid JSON"),
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Upsert-specific helpers
+// ---------------------------------------------------------------------------
+
+/** Dedup search succeeded — matchKeys and pre-built warnings are available. */
+export interface DedupSearchOk {
+  ok: true;
+  matchKeys: string[];
+  warnings: string[];
+}
+
+/** Dedup search failed — response is ready to return immediately. */
+export interface DedupSearchErr {
+  ok: false;
+  response: ApiRouteResponse;
+}
+
+export type DedupSearchResult = DedupSearchOk | DedupSearchErr;
+
+/**
+ * Executes the caller-supplied dedup JQL and builds the warnings array.
+ *
+ * @param jql        - JQL query to execute
+ * @param project    - Target project key (used for cross-project warning)
+ * @param authClient - Authenticated Forge API client (default: asApp())
+ */
+export async function runDedupSearch(
+  jql: string,
+  project: string,
+  authClient?: AuthClient,
+): Promise<DedupSearchResult> {
+  let matchKeys: string[];
+  try {
+    matchKeys = await searchIssues(jql, 10, authClient);
+  } catch (err) {
+    if (err instanceof JiraApiError) {
+      return {
+        ok: false,
+        response: {
+          statusCode: err.status,
+          headers: { "Content-Type": ["application/json"] },
+          body: err.body,
+        },
+      };
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      ok: false,
+      response: buildErrorResponse(500, `Dedup search failed: ${message}`),
+    };
+  }
+
+  const warnings = buildDedupWarnings(matchKeys, project);
+  return { ok: true, matchKeys, warnings };
+}
+
+/**
+ * Builds the UpsertResponse envelope and wraps it in an ApiRouteResponse.
+ * Always 200 OK regardless of whether an issue was created or a dup was found.
+ */
+export function buildUpsertResponse(
+  outcome:
+    | { created: true; id: string; key: string; self: string }
+    | { created: false; matches: string[]; warnings: string[] },
+): ApiRouteResponse {
+  const response: UpsertResponse = outcome.created
+    ? {
+        created: true,
+        id: outcome.id,
+        key: outcome.key,
+        self: outcome.self,
+        matches: [],
+        warnings: [],
+      }
+    : {
+        created: false,
+        id: null,
+        key: null,
+        self: null,
+        matches: outcome.matches,
+        warnings: outcome.warnings,
+      };
+
+  return {
+    statusCode: 200,
+    headers: { "Content-Type": ["application/json"] },
+    body: JSON.stringify(response),
+  };
+}
+
+/**
+ * Builds the warnings array for a dedup hit.
+ * Warns when any match key belongs to a project other than the target.
+ */
+function buildDedupWarnings(matchKeys: string[], project: string): string[] {
+  const otherProjectKeys = matchKeys.filter(
+    (key) => !key.toUpperCase().startsWith(`${project.toUpperCase()}-`),
+  );
+  if (otherProjectKeys.length > 0) {
+    return [
+      `Dedup query returned matches from other projects (e.g. ${otherProjectKeys[0]}) — verify your JQL is scoped correctly.`,
+    ];
+  }
+  return [];
 }
