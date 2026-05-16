@@ -24,6 +24,14 @@ modules:
         - application/json
       scopes:
         - write:workitem:custom
+    - key: workitem-as-user-post
+      path: /workitem/asuser
+      operation: POST
+      function: wi-asuser-handler
+      accept:
+        - application/json
+      scopes:
+        - write:workitem-as-user:custom
     - key: workitem-upsert-post
       path: /workitem/upsert
       operation: POST
@@ -32,11 +40,23 @@ modules:
         - application/json
       scopes:
         - write:workitem:custom
+    - key: workitem-upsert-as-user-post
+      path: /workitem/upsert/asuser
+      operation: POST
+      function: wi-upsert-asuser-fn
+      accept:
+        - application/json
+      scopes:
+        - write:workitem-as-user:custom
   function:
     - key: workitem-handler
       handler: index.handleWorkitem
+    - key: wi-asuser-handler
+      handler: index.handleWorkitemAsUser
     - key: workitem-upsert-handler
       handler: index.handleWorkitemUpsert
+    - key: wi-upsert-asuser-fn
+      handler: index.handleWorkitemUpsertAsUser
 resources:
   - key: admin-page-resource
     path: src/frontend/index.tsx

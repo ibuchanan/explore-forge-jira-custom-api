@@ -58,7 +58,11 @@ interface ForgeAuth {
 
 type ForgeAuthClient = ReturnType<typeof asApp> | ReturnType<typeof asUser>;
 
-export type AuthStrategy = "asUserAccount" | "asUserContext" | "asApp";
+export type AuthStrategy =
+  | "asUserAccount"
+  | "asUserContext"
+  | "asApp"
+  | "asUserRaiseOnBehalfOf";
 
 export type AuthDiagnosticReason =
   | "installerAccountId"
@@ -231,6 +235,50 @@ function hasUserAccessEnabled(event: CommonEvent): boolean {
  * @see {@link https://developer.atlassian.com/platform/forge/runtime-reference/authorization/ | Forge Authorization}
  * @see {@link https://developer.atlassian.com/platform/forge/runtime-reference/user-auth/ | User Authentication}
  */
+/**
+ * Selects the authentication strategy for an apiRoute request body.
+ *
+ * If `raiseOnBehalfOf` is present in the body, returns `asUser(raiseOnBehalfOf)`.
+ * Otherwise delegates to `getAuthForEvent` (which returns `asApp()` for apiRoutes
+ * that have no user context).
+ *
+ * **This function does NOT validate that `raiseOnBehalfOf` is present on
+ * /as-user endpoints.** That enforcement is the handler's responsibility —
+ * the handler must reject requests missing the field before calling this.
+ *
+ * @param body  - Parsed request body (may be any object; only `raiseOnBehalfOf` is read)
+ * @param api   - The Forge API module (injected for testability)
+ * @returns `AuthForEvent` with strategy `"asUserRaiseOnBehalfOf"` when the field
+ *          is present, or whatever `getAuthForEvent` returns otherwise.
+ */
+export function getAuthForRequest(
+  body: { raiseOnBehalfOf?: string | undefined } | null | undefined,
+  api: ForgeAuth = { asUser, asApp },
+): { auth: ForgeAuthClient; diagnostics: AuthDiagnostics } {
+  const accountId = body?.raiseOnBehalfOf;
+  if (accountId) {
+    return {
+      auth: api.asUser(accountId),
+      diagnostics: {
+        strategy: "asUserRaiseOnBehalfOf",
+        reason: "noUserContext", // apiRoute has no Forge user context
+        accountId,
+        context: {},
+      },
+    };
+  }
+
+  // No raiseOnBehalfOf — fall back to asApp() for apiRoute handlers
+  return {
+    auth: api.asApp(),
+    diagnostics: {
+      strategy: "asApp",
+      reason: "noUserContext",
+      context: {},
+    },
+  };
+}
+
 export function getAuthForEvent(
   event: CommonEvent,
   api: ForgeAuth = { asUser, asApp },

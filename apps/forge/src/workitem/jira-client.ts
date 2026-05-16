@@ -8,6 +8,7 @@
  */
 
 import api, { route } from "@forge/api";
+import type { RequestProductMethods } from "@forge/api";
 import type { components } from "forge-ahead/jira/platform-3";
 import type { WorkitemResponse } from "./types";
 
@@ -99,6 +100,12 @@ export async function getFieldsForIssueType(
 }
 
 /**
+ * Minimal interface for an authenticated Forge API client.
+ * Satisfied by both `api.asApp()` and `api.asUser(accountId)` return values.
+ */
+export type AuthClient = RequestProductMethods;
+
+/**
  * Searches Jira issues using JQL and returns up to `maxResults` issue keys.
  *
  * Used by the upsert handler to check for duplicates before creating an issue.
@@ -106,21 +113,24 @@ export async function getFieldsForIssueType(
  *
  * @param jql        - JQL query string to execute
  * @param maxResults - Maximum number of results to fetch (default 10)
+ * @param authClient - Authenticated Forge API client (default: asApp())
  */
 export async function searchIssues(
   jql: string,
   maxResults = 10,
+  authClient: AuthClient = api.asApp(),
 ): Promise<string[]> {
-  const response = await api
-    .asUser()
-    .requestJira(route`/rest/api/3/issue/search`, {
+  const response = await authClient.requestJira(
+    route`/rest/api/3/issue/search`,
+    {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ jql, maxResults, fields: ["key"] }),
-    });
+    },
+  );
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -139,12 +149,18 @@ export async function searchIssues(
 /**
  * Creates a Jira issue with the provided (already-translated) body.
  * The `fields` and `update` maps must use raw Jira field IDs at this point.
+ *
+ * @param body       - Translated issue body with raw Jira field IDs
+ * @param authClient - Authenticated Forge API client (default: asApp())
  */
-export async function createIssue(body: {
-  fields: Record<string, unknown>;
-  update?: Record<string, unknown>;
-}): Promise<WorkitemResponse> {
-  const response = await api.asUser().requestJira(route`/rest/api/3/issue`, {
+export async function createIssue(
+  body: {
+    fields: Record<string, unknown>;
+    update?: Record<string, unknown>;
+  },
+  authClient: AuthClient = api.asApp(),
+): Promise<WorkitemResponse> {
+  const response = await authClient.requestJira(route`/rest/api/3/issue`, {
     method: "POST",
     headers: {
       Accept: "application/json",

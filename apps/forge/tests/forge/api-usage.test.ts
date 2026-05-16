@@ -119,7 +119,11 @@ describe("API Usage Patterns", () => {
 
         const hasValidAuth =
           normalizedContext.includes(`.asUser().${methodName}`) ||
-          normalizedContext.includes(`.asApp().${methodName}`);
+          normalizedContext.includes(`.asApp().${methodName}`) ||
+          // authClient is a pre-authenticated client (api.asUser(accountId) or
+          // api.asApp()) passed as a parameter — the auth origin is enforced at
+          // the call site that constructs authClient.
+          normalizedContext.includes(`authClient.${methodName}`);
 
         expect(
           hasValidAuth,

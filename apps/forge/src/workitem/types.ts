@@ -80,6 +80,12 @@ export const WorkitemRequestSchema = z.object({
    * Optional — if absent, no entity property is written.
    */
   otel: OtelContextSchema.optional(),
+  /**
+   * Jira accountId of the user on whose behalf the issue should be created.
+   * On plain insert/upsert endpoints this field is ignored if present.
+   * On /as-user endpoints this field is required.
+   */
+  raiseOnBehalfOf: z.string().optional(),
 });
 
 /** Request body for POST /workitem — inferred from {@link WorkitemRequestSchema}. */
@@ -120,6 +126,59 @@ export interface FieldResolutionError {
   /** Populated when reason === "ambiguous"; lists all matching field IDs */
   matches?: string[];
 }
+
+/**
+ * Zod schema for POST /workitem/as-user request body.
+ *
+ * Extends WorkitemRequest, making `raiseOnBehalfOf` required.
+ * Callers that omit the field should use the plain /workitem endpoint instead.
+ */
+export const InsertAsUserRequestSchema = WorkitemRequestSchema.extend({
+  /**
+   * Jira accountId of the user on whose behalf the issue should be created.
+   * Required on this endpoint — use POST /workitem if acting as the app identity.
+   */
+  raiseOnBehalfOf: z
+    .string()
+    .min(
+      1,
+      "`raiseOnBehalfOf` is required on this endpoint. Provide a Jira accountId.",
+    ),
+});
+
+/** Request body for POST /workitem/as-user — inferred from {@link InsertAsUserRequestSchema}. */
+export type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
+
+/**
+ * Zod schema for POST /workitem/upsert/as-user request body.
+ *
+ * Extends UpsertRequest, making `raiseOnBehalfOf` required.
+ */
+export const UpsertAsUserRequestSchema = WorkitemRequestSchema.extend({
+  /**
+   * JQL query that defines what counts as a duplicate.
+   */
+  dedup: z
+    .string()
+    .trim()
+    .min(
+      1,
+      "`dedup` must be a non-empty JQL string. Use the insert endpoint if deduplication is not needed.",
+    ),
+  /**
+   * Jira accountId of the user on whose behalf the issue should be created.
+   * Required on this endpoint — use POST /workitem/upsert if acting as the app identity.
+   */
+  raiseOnBehalfOf: z
+    .string()
+    .min(
+      1,
+      "`raiseOnBehalfOf` is required on this endpoint. Provide a Jira accountId.",
+    ),
+});
+
+/** Request body for POST /workitem/upsert/as-user — inferred from {@link UpsertAsUserRequestSchema}. */
+export type UpsertAsUserRequest = z.infer<typeof UpsertAsUserRequestSchema>;
 
 /**
  * Zod schema for POST /workitem/upsert request body.

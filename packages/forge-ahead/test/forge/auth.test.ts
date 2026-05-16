@@ -12,7 +12,7 @@
 
 import api, { asApp, asUser } from "@forge/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getAuthForEvent } from "../../src/forge/auth";
+import { getAuthForEvent, getAuthForRequest } from "../../src/forge/auth";
 import type { CommonEvent } from "../../src/forge/function";
 import lifecycle from "../data/event/lifecycle.json";
 import product from "../data/event/product.json";
@@ -200,6 +200,59 @@ describe("getAuthForEvent", () => {
         "Forge event context must include cloudId and moduleKey to select an auth strategy",
     });
     expect(asApp).not.toHaveBeenCalled();
+    expect(asUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("getAuthForRequest", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns asUser(raiseOnBehalfOf) when raiseOnBehalfOf is present", () => {
+    const body = { raiseOnBehalfOf: "user-account-123" };
+
+    const result = getAuthForRequest(body, api);
+
+    expect(result.diagnostics.strategy).toBe("asUserRaiseOnBehalfOf");
+    expect(result.diagnostics.accountId).toBe("user-account-123");
+    expect(asUser).toHaveBeenCalledWith("user-account-123");
+    expect(asApp).not.toHaveBeenCalled();
+  });
+
+  it("returns asApp() when raiseOnBehalfOf is absent", () => {
+    const body = { project: "HSP", issueType: "Bug" };
+
+    const result = getAuthForRequest(body, api);
+
+    expect(result.diagnostics.strategy).toBe("asApp");
+    expect(result.diagnostics.accountId).toBeUndefined();
+    expect(asApp).toHaveBeenCalledTimes(1);
+    expect(asUser).not.toHaveBeenCalled();
+  });
+
+  it("returns asApp() when body is null", () => {
+    const result = getAuthForRequest(null, api);
+
+    expect(result.diagnostics.strategy).toBe("asApp");
+    expect(asApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns asApp() when body is undefined", () => {
+    const result = getAuthForRequest(undefined, api);
+
+    expect(result.diagnostics.strategy).toBe("asApp");
+    expect(asApp).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns asApp() when raiseOnBehalfOf is an empty string", () => {
+    const body = { raiseOnBehalfOf: "" };
+
+    const result = getAuthForRequest(body, api);
+
+    // Empty string is falsy — treated as absent
+    expect(result.diagnostics.strategy).toBe("asApp");
+    expect(asApp).toHaveBeenCalledTimes(1);
     expect(asUser).not.toHaveBeenCalled();
   });
 });

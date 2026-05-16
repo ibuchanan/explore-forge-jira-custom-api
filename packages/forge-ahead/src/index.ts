@@ -40,7 +40,8 @@ export type {
   SchemaFieldMetadata,
 } from "./config/types";
 // Re-export authentication utilities
-export { getAuthForEvent } from "./forge/auth";
+export { getAuthForEvent, getAuthForRequest } from "./forge/auth";
+export type { AuthDiagnostics, AuthForEvent, AuthStrategy } from "./forge/auth";
 // Re-export common Forge function types
 export type {
   CommonEvent,
