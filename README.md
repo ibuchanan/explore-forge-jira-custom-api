@@ -148,6 +148,25 @@ packages/forge-ahead/
   src/rovo/         # Rovo action and agent connector support
 ```
 
+## Production considerations
+
+- For the `/asuser` endpoints, the `write:workitem-as-user:custom` scope is the
+  security boundary. A caller with that scope may provide `raiseOnBehalfOf` to
+  create or upsert as the supplied Jira account ID. This follows the same product
+  pattern as Jira Service Management request APIs that accept a `raiseOnBehalfOf`
+  user, while making the capability explicit for this app with a dedicated custom
+  scope.
+- The manifest currently uses Jira's classic `read:jira-work` and `write:jira-work`
+  scopes. That keeps the sample straightforward, but a production app should review
+  the exact Jira endpoints it calls and prefer narrower granular scopes when they
+  cover the same operations.
+- The handlers log incoming `apiRoute` requests for sample/debug visibility. In a
+  production app, treat verbose request logging on hot paths as an anti-pattern:
+  log compact metadata or correlation IDs instead of full payloads, and gate any
+  debug payload logging. Atlassian's [Forge cost guidance](https://developer.atlassian.com/platform/forge/optimise-forge-costs/)
+  identifies log writes as a cost driver and recommends avoiding verbose logging in
+  hot paths.
+
 ## Architectural decisions
 
 Key decisions are documented in [`docs/adr/`](docs/adr/):
