@@ -122,12 +122,55 @@ export interface FieldResolutionError {
 }
 
 /**
+ * Zod schema for POST /workitem/upsert request body.
+ *
+ * Extends WorkitemRequest with a required `dedup` JQL string.
+ * The `dedup` field must be non-empty — it is executed against Jira search
+ * before creation to detect existing matching issues.
+ */
+export const UpsertRequestSchema = WorkitemRequestSchema.extend({
+  /**
+   * JQL query that defines what counts as a duplicate.
+   * Executed pre-creation; if results are found, creation is skipped.
+   * Must be non-empty — use the insert endpoint if deduplication is not needed.
+   */
+  dedup: z
+    .string()
+    .trim()
+    .min(
+      1,
+      "`dedup` must be a non-empty JQL string. Use the insert endpoint if deduplication is not needed.",
+    ),
+});
+
+/** Request body for POST /workitem/upsert — inferred from {@link UpsertRequestSchema}. */
+export type UpsertRequest = z.infer<typeof UpsertRequestSchema>;
+
+/**
  * Successful response body for POST /workitem.
  */
 export interface WorkitemResponse {
   id: string;
   key: string;
   self: string;
+}
+
+/**
+ * Response body for POST /workitem/upsert — always 200 OK.
+ *
+ * Uses a fully consistent envelope (ADR-0004 Option C):
+ * - `created: true`  → new issue created; `id`/`key`/`self` are populated.
+ * - `created: false` → duplicate(s) found; `id`/`key`/`self` are null; `matches` populated.
+ * - `warnings`       → always present (may be empty); advisory messages.
+ * - `matches`        → always present (empty on creation, populated on dedup hit).
+ */
+export interface UpsertResponse {
+  created: boolean;
+  id: string | null;
+  key: string | null;
+  self: string | null;
+  matches: string[];
+  warnings: string[];
 }
 
 /**

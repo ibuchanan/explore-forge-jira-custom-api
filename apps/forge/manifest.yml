@@ -24,9 +24,19 @@ modules:
         - application/json
       scopes:
         - write:workitem:custom
+    - key: workitem-upsert-post
+      path: /workitem/upsert
+      operation: POST
+      function: workitem-upsert-handler
+      accept:
+        - application/json
+      scopes:
+        - write:workitem:custom
   function:
     - key: workitem-handler
       handler: index.handleWorkitem
+    - key: workitem-upsert-handler
+      handler: index.handleWorkitemUpsert
 resources:
   - key: admin-page-resource
     path: src/frontend/index.tsx

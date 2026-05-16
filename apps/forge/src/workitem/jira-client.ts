@@ -99,6 +99,44 @@ export async function getFieldsForIssueType(
 }
 
 /**
+ * Searches Jira issues using JQL and returns up to `maxResults` issue keys.
+ *
+ * Used by the upsert handler to check for duplicates before creating an issue.
+ * Caps at 10 results per the dedup spec.
+ *
+ * @param jql        - JQL query string to execute
+ * @param maxResults - Maximum number of results to fetch (default 10)
+ */
+export async function searchIssues(
+  jql: string,
+  maxResults = 10,
+): Promise<string[]> {
+  const response = await api
+    .asUser()
+    .requestJira(route`/rest/api/3/issue/search`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ jql, maxResults, fields: ["key"] }),
+    });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new JiraApiError(response.status, errorBody);
+  }
+
+  const data = (await response.json()) as {
+    issues?: { key?: string }[];
+  };
+  return (data.issues ?? [])
+    .map((issue) => issue.key ?? "")
+    .filter(Boolean)
+    .slice(0, maxResults);
+}
+
+/**
  * Creates a Jira issue with the provided (already-translated) body.
  * The `fields` and `update` maps must use raw Jira field IDs at this point.
  */

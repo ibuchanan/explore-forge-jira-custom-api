@@ -6,3 +6,4 @@
  */
 
 export { handleWorkitem } from "./workitem/handler";
+export { handleWorkitemUpsert } from "./workitem/upsert-handler";
