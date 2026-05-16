@@ -27,16 +27,13 @@ import {
   buildErrorResponse,
   logApiRouteRequest,
 } from "forge-ahead";
-import type { ValidationProblemDetails } from "forge-ahead";
-import { resolveFieldNames, translateKeys } from "./field-resolver";
-import type { FieldMeta } from "./field-coercer";
-import { coerceFields } from "./field-coercer";
 import {
   createIssue,
   JiraApiError,
   searchIssues,
   writeOtelProperty,
 } from "./jira-client";
+import { parseBody, runPipeline } from "./pipeline";
 import { UpsertRequestSchema } from "./types";
 import type { UpsertResponse } from "./types";
 
@@ -52,15 +49,11 @@ export async function handleWorkitemUpsert(
   logApiRouteRequest(req, "workitem/upsert");
 
   // 1. Parse body
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(req.body ?? "null");
-  } catch {
-    return buildErrorResponse(400, "Request body must be valid JSON");
-  }
+  const parsed = parseBody(req.body);
+  if (!parsed.ok) return parsed.response;
 
   // 2. Validate shape with zod (includes dedup non-empty check)
-  const validation = UpsertRequestSchema.safeParse(parsed);
+  const validation = UpsertRequestSchema.safeParse(parsed.value);
   if (!validation.success) {
     const dedupError = validation.error.errors.find((e) =>
       e.path.includes("dedup"),
@@ -80,60 +73,16 @@ export async function handleWorkitemUpsert(
 
   const { project, issueType, fields, update, otel, dedup } = validation.data;
 
-  // 3. Collect all field names that need resolving
-  const namesToResolve = new Set<string>(Object.keys(fields));
+  // 3–5. Resolve field names, coerce values, build Jira body
+  const pipeline = await runPipeline({ project, issueType, fields, update });
+  if (!pipeline.ok) return pipeline.response;
 
-  // Phase 1 — Resolve all field names
-  let resolved: Map<string, string>;
-  let fieldMetaById: Map<string, FieldMeta>;
-  try {
-    const result = await resolveFieldNames(project, issueType, namesToResolve);
-
-    if (result.isErr()) {
-      return buildValidationErrorResponse(result.error);
-    }
-
-    resolved = result.value.resolved;
-    fieldMetaById = result.value.fieldMetaById as Map<string, FieldMeta>;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return buildErrorResponse(
-      500,
-      `Failed to fetch field metadata: ${message}`,
-    );
-  }
-
-  // 4. Translate field names → Jira field IDs
-  const translatedFields = translateKeys(fields, resolved);
-  const translatedUpdate = update ? translateKeys(update, resolved) : undefined;
-
-  // Phase 2 — Coerce all field values to Jira-shaped objects
-  const coercionResult = coerceFields(
-    translatedFields,
-    fieldMetaById,
-    resolved,
-  );
-  if (!coercionResult.ok) {
-    const problem: ValidationProblemDetails = {
-      type: "https://httpstatuses.io/400",
-      title: "Bad Request",
-      status: 400,
-      detail: `Field value coercion failed for ${coercionResult.errors.length} field(s).`,
-      timestamp: new Date().toISOString(),
-      errors: coercionResult.errors,
-    };
-    return buildValidationErrorResponse(problem);
-  }
-
-  const coercedFields = coercionResult.fields;
-
-  // 5. Pre-creation dedup check — execute the caller's JQL
+  // 6. Pre-creation dedup check — execute the caller's JQL
   let matchKeys: string[];
   try {
     matchKeys = await searchIssues(dedup, 10);
   } catch (err) {
     if (err instanceof JiraApiError) {
-      // Jira rejected the JQL — forward 400 faithfully
       return {
         statusCode: err.status,
         headers: { "Content-Type": ["application/json"] },
@@ -144,20 +93,9 @@ export async function handleWorkitemUpsert(
     return buildErrorResponse(500, `Dedup search failed: ${message}`);
   }
 
-  // 6. If duplicates found, skip creation and return matches
+  // 7. If duplicates found, skip creation and return matches
   if (matchKeys.length > 0) {
-    const warnings: string[] = [];
-
-    // Project-scope warning: flag matches from a different project
-    const otherProjectKeys = matchKeys.filter(
-      (key) => !key.toUpperCase().startsWith(`${project.toUpperCase()}-`),
-    );
-    if (otherProjectKeys.length > 0) {
-      warnings.push(
-        `Dedup query returned matches from other projects (e.g. ${otherProjectKeys[0]}) — verify your JQL is scoped correctly.`,
-      );
-    }
-
+    const warnings = buildDedupWarnings(matchKeys, project);
     const response: UpsertResponse = {
       created: false,
       id: null,
@@ -173,24 +111,10 @@ export async function handleWorkitemUpsert(
     };
   }
 
-  // 7. No duplicates — create the issue
-  const jiraBody: {
-    fields: Record<string, unknown>;
-    update?: Record<string, unknown>;
-  } = {
-    fields: {
-      ...coercedFields,
-      project: { key: project },
-      issuetype: { name: issueType },
-    },
-  };
-  if (translatedUpdate && Object.keys(translatedUpdate).length > 0) {
-    jiraBody.update = translatedUpdate;
-  }
-
+  // 8. No duplicates — create the issue
   let created: { id: string; key: string; self: string };
   try {
-    created = await createIssue(jiraBody);
+    created = await createIssue(pipeline.body);
   } catch (err) {
     if (err instanceof JiraApiError) {
       return {
@@ -203,7 +127,7 @@ export async function handleWorkitemUpsert(
     return buildErrorResponse(500, `Failed to create issue: ${message}`);
   }
 
-  // 8. Write OTel entity property (best-effort)
+  // 9. Write OTel entity property (best-effort)
   if (otel) {
     void writeOtelProperty(created.key, otel);
   }
@@ -224,14 +148,17 @@ export async function handleWorkitemUpsert(
 }
 
 /**
- * Serialises a ValidationProblemDetails into an ApiRouteResponse.
+ * Builds the warnings array for a dedup hit.
+ * Warns when any match key belongs to a project other than the target.
  */
-function buildValidationErrorResponse(
-  problem: ValidationProblemDetails,
-): ApiRouteResponse {
-  return {
-    statusCode: problem.status,
-    headers: { "Content-Type": ["application/json"] },
-    body: JSON.stringify(problem),
-  };
+function buildDedupWarnings(matchKeys: string[], project: string): string[] {
+  const otherProjectKeys = matchKeys.filter(
+    (key) => !key.toUpperCase().startsWith(`${project.toUpperCase()}-`),
+  );
+  if (otherProjectKeys.length > 0) {
+    return [
+      `Dedup query returned matches from other projects (e.g. ${otherProjectKeys[0]}) — verify your JQL is scoped correctly.`,
+    ];
+  }
+  return [];
 }

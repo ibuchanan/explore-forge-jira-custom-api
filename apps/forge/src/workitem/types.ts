@@ -128,6 +128,28 @@ export interface FieldResolutionError {
 }
 
 /**
+ * Required `raiseOnBehalfOf` field schema — shared by all /as-user schemas.
+ * The error message is the canonical 400 message for this endpoint family.
+ */
+const RequiredRaiseOnBehalfOf = z
+  .string()
+  .min(
+    1,
+    "`raiseOnBehalfOf` is required on this endpoint. Provide a Jira accountId.",
+  );
+
+/**
+ * Required `dedup` field schema — shared by all upsert schemas.
+ */
+const RequiredDedup = z
+  .string()
+  .trim()
+  .min(
+    1,
+    "`dedup` must be a non-empty JQL string. Use the insert endpoint if deduplication is not needed.",
+  );
+
+/**
  * Zod schema for POST /workitem/as-user request body.
  *
  * Extends WorkitemRequest, making `raiseOnBehalfOf` required.
@@ -138,12 +160,7 @@ export const InsertAsUserRequestSchema = WorkitemRequestSchema.extend({
    * Jira accountId of the user on whose behalf the issue should be created.
    * Required on this endpoint — use POST /workitem if acting as the app identity.
    */
-  raiseOnBehalfOf: z
-    .string()
-    .min(
-      1,
-      "`raiseOnBehalfOf` is required on this endpoint. Provide a Jira accountId.",
-    ),
+  raiseOnBehalfOf: RequiredRaiseOnBehalfOf,
 });
 
 /** Request body for POST /workitem/as-user — inferred from {@link InsertAsUserRequestSchema}. */
@@ -152,29 +169,18 @@ export type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
 /**
  * Zod schema for POST /workitem/upsert/as-user request body.
  *
- * Extends UpsertRequest, making `raiseOnBehalfOf` required.
+ * Extends WorkitemRequest, making both `dedup` and `raiseOnBehalfOf` required.
  */
 export const UpsertAsUserRequestSchema = WorkitemRequestSchema.extend({
   /**
    * JQL query that defines what counts as a duplicate.
    */
-  dedup: z
-    .string()
-    .trim()
-    .min(
-      1,
-      "`dedup` must be a non-empty JQL string. Use the insert endpoint if deduplication is not needed.",
-    ),
+  dedup: RequiredDedup,
   /**
    * Jira accountId of the user on whose behalf the issue should be created.
    * Required on this endpoint — use POST /workitem/upsert if acting as the app identity.
    */
-  raiseOnBehalfOf: z
-    .string()
-    .min(
-      1,
-      "`raiseOnBehalfOf` is required on this endpoint. Provide a Jira accountId.",
-    ),
+  raiseOnBehalfOf: RequiredRaiseOnBehalfOf,
 });
 
 /** Request body for POST /workitem/upsert/as-user — inferred from {@link UpsertAsUserRequestSchema}. */
@@ -193,13 +199,7 @@ export const UpsertRequestSchema = WorkitemRequestSchema.extend({
    * Executed pre-creation; if results are found, creation is skipped.
    * Must be non-empty — use the insert endpoint if deduplication is not needed.
    */
-  dedup: z
-    .string()
-    .trim()
-    .min(
-      1,
-      "`dedup` must be a non-empty JQL string. Use the insert endpoint if deduplication is not needed.",
-    ),
+  dedup: RequiredDedup,
 });
 
 /** Request body for POST /workitem/upsert — inferred from {@link UpsertRequestSchema}. */
