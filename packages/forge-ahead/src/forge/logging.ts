@@ -118,38 +118,29 @@ import type { JSONValue } from "./types";
  * @see {@link https://developer.atlassian.com/platform/forge/runtime-reference/storage-api-security/ | Forge Security Best Practices}
  */
 export function truncateEvents(obj: JSONValue): JSONValue {
-  // Primitive values are returned as-is
-  if (typeof obj !== "object" || obj === null) {
-    return obj;
-  }
+  if (typeof obj !== "object" || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(truncateEvents);
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, redactEntry(k, v as JSONValue)]),
+  );
+}
 
-  // Arrays are recursively processed and returned as arrays
-  if (Array.isArray(obj)) {
-    return obj.map(truncateEvents);
+/**
+ * Redacts a single object entry for safe logging.
+ * - `contextToken` → first 3 + last 3 chars
+ * - `headers`      → placeholder `{ "...": "..." }`
+ * - everything else → recurse
+ */
+function redactEntry(key: string, value: JSONValue): JSONValue {
+  if (key === "contextToken" && typeof value === "string") {
+    return `${value.slice(0, 3)}...${value.slice(-3)}`;
   }
-
-  // Objects are processed key by key, with special handling for sensitive fields
-  const newObj: { [key: string]: JSONValue } = {};
-  for (const key in obj) {
-    if (key === "contextToken") {
-      // Truncate context tokens to hide the sensitive middle portion
-      const token = obj[key];
-      if (typeof token === "string") {
-        newObj[key] = `${token.slice(0, 3)}...${token.slice(-3)}`;
-      } else if (token !== undefined) {
-        newObj[key] = token;
-      }
-    } else if (key === "headers") {
-      // Replace headers object entirely to prevent exposing authorization details
-      newObj[key] = { "...": "..." };
-    } else {
-      // Recursively process other values
-      if (obj[key] !== undefined) {
-        newObj[key] = truncateEvents(obj[key]);
-      }
-    }
+  if (key === "headers") {
+    return { "...": "..." };
   }
-  return newObj;
+  return truncateEvents(value);
 }
 
 /**
