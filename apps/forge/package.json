@@ -40,7 +40,6 @@
   "devDependencies": {
     "@forge/bridge": "^5.16",
     "@forge/react": "^11.15",
-    "@forge/resolver": "^1.8",
     "@types/node": "*",
     "@types/react": "18",
     "archunit": "*",

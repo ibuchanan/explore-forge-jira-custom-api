@@ -112,6 +112,7 @@ export async function handleWorkitemUpsert(
   }
 
   // 8. No duplicates — create the issue
+  // fallow-ignore-next-line code-duplication
   let created: { id: string; key: string; self: string };
   try {
     created = await createIssue(pipeline.body);

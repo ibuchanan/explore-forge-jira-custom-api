@@ -36,7 +36,7 @@ import { z } from "zod";
  *
  * @see {@link https://www.w3.org/TR/trace-context/|W3C Trace Context}
  */
-export const OtelContextSchema = z.object({
+const OtelContextSchema = z.object({
   /** W3C 32-hex-char trace ID */
   traceId: z
     .string()
@@ -58,7 +58,7 @@ export const OtelContextSchema = z.object({
 });
 
 /** OTel trace context — inferred from {@link OtelContextSchema}. */
-export type OtelContext = z.infer<typeof OtelContextSchema>;
+type OtelContext = z.infer<typeof OtelContextSchema>;
 
 export const WorkitemRequestSchema = z.object({
   /** Jira project key (e.g. "HSP") */
@@ -89,7 +89,7 @@ export const WorkitemRequestSchema = z.object({
 });
 
 /** Request body for POST /workitem — inferred from {@link WorkitemRequestSchema}. */
-export type WorkitemRequest = z.infer<typeof WorkitemRequestSchema>;
+type WorkitemRequest = z.infer<typeof WorkitemRequestSchema>;
 
 /**
  * Metadata for a single resolved Jira field.
@@ -112,7 +112,7 @@ export interface FieldResolution {
  * On failure: a {@link ValidationProblemDetails} describing what went wrong,
  * with the `detail` field summarising the problems and `errors` listing each one.
  */
-export type FieldResolutionResult = Result<
+type FieldResolutionResult = Result<
   Map<string, string>,
   ValidationProblemDetails
 >;
@@ -164,7 +164,7 @@ export const InsertAsUserRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/as-user — inferred from {@link InsertAsUserRequestSchema}. */
-export type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
+type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
 
 /**
  * Zod schema for POST /workitem/upsert/as-user request body.
@@ -184,7 +184,7 @@ export const UpsertAsUserRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/upsert/as-user — inferred from {@link UpsertAsUserRequestSchema}. */
-export type UpsertAsUserRequest = z.infer<typeof UpsertAsUserRequestSchema>;
+type UpsertAsUserRequest = z.infer<typeof UpsertAsUserRequestSchema>;
 
 /**
  * Zod schema for POST /workitem/upsert request body.
@@ -203,7 +203,7 @@ export const UpsertRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/upsert — inferred from {@link UpsertRequestSchema}. */
-export type UpsertRequest = z.infer<typeof UpsertRequestSchema>;
+type UpsertRequest = z.infer<typeof UpsertRequestSchema>;
 
 /**
  * Successful response body for POST /workitem.
@@ -236,4 +236,5 @@ export interface UpsertResponse {
  * Error response body returned on 4xx/5xx — RFC 9457 Problem Details.
  * Re-exported from forge-ahead so handler code has a single import point.
  */
+// fallow-ignore-next-line unused-type
 export type { ProblemDetails as ErrorResponse };

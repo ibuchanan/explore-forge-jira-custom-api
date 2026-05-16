@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-file
 /**
  * Admin page frontend — surfaces the base URLs for making REST API requests
  * to this Forge app on the current site.

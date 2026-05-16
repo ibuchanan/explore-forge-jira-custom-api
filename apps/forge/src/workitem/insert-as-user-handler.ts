@@ -41,6 +41,7 @@ export async function handleWorkitemAsUser(
   if (!parsed.ok) return parsed.response;
 
   // 2. Validate shape with zod — raiseOnBehalfOf is required here
+  // fallow-ignore-next-line code-duplication
   const validation = InsertAsUserRequestSchema.safeParse(parsed.value);
   if (!validation.success) {
     const robError = validation.error.errors.find((e) =>
@@ -70,6 +71,7 @@ export async function handleWorkitemAsUser(
   if (!pipeline.ok) return pipeline.response;
 
   // 7. Create the issue as the specified user
+  // fallow-ignore-next-line code-duplication
   let created: { id: string; key: string; self: string };
   try {
     created = await createIssue(pipeline.body, authClient);

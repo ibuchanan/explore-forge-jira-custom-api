@@ -125,7 +125,7 @@ export async function runPipeline(
  * Serialises a ValidationProblemDetails into an ApiRouteResponse.
  * Centralised here so no handler needs to repeat this pattern.
  */
-export function toValidationErrorResponse(
+function toValidationErrorResponse(
   problem: ValidationProblemDetails,
 ): ApiRouteResponse {
   return {

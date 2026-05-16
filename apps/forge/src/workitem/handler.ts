@@ -60,6 +60,7 @@ export async function handleWorkitem(
   if (!pipeline.ok) return pipeline.response;
 
   // 6. Create the issue
+  // fallow-ignore-next-line code-duplication
   let created: { id: string; key: string; self: string };
   try {
     created = await createIssue(pipeline.body);

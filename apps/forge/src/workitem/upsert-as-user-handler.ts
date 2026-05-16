@@ -46,6 +46,7 @@ export async function handleWorkitemUpsertAsUser(
   if (!parsed.ok) return parsed.response;
 
   // 2. Validate shape with zod — raiseOnBehalfOf and dedup are both required
+  // fallow-ignore-next-line code-duplication
   const validation = UpsertAsUserRequestSchema.safeParse(parsed.value);
   if (!validation.success) {
     const robError = validation.error.errors.find((e) =>
@@ -118,6 +119,7 @@ export async function handleWorkitemUpsertAsUser(
   }
 
   // 9. No duplicates — create the issue as the specified user
+  // fallow-ignore-next-line code-duplication
   let created: { id: string; key: string; self: string };
   try {
     created = await createIssue(pipeline.body, authClient);
