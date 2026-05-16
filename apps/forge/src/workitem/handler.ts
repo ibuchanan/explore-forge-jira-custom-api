@@ -22,7 +22,7 @@ import {
   logApiRouteRequest,
 } from "forge-ahead";
 import { resolveFieldNames, translateKeys } from "./field-resolver";
-import { createIssue, JiraApiError } from "./jira-client";
+import { createIssue, JiraApiError, writeOtelProperty } from "./jira-client";
 import { WorkitemRequestSchema } from "./types";
 
 /**
@@ -54,7 +54,7 @@ export async function handleWorkitem(
     );
   }
 
-  const { project, issueType, fields, update } = validation.data;
+  const { project, issueType, fields, update, otel } = validation.data;
 
   // 3. Collect all field names that need resolving (fields + update combined)
   const namesToResolve = new Set<string>([
@@ -101,9 +101,9 @@ export async function handleWorkitem(
   }
 
   // 6. Create the issue
+  let created: { id: string; key: string; self: string };
   try {
-    const created = await createIssue(jiraBody);
-    return buildSuccessResponse(created as object, 201);
+    created = await createIssue(jiraBody);
   } catch (err) {
     if (err instanceof JiraApiError) {
       // Forward Jira's status + body faithfully (Jira's own error format)
@@ -116,4 +116,11 @@ export async function handleWorkitem(
     const message = err instanceof Error ? err.message : String(err);
     return buildErrorResponse(500, `Failed to create issue: ${message}`);
   }
+
+  // 7. Write OTel entity property (best-effort — never blocks or fails the response)
+  if (otel) {
+    void writeOtelProperty(created.key, otel);
+  }
+
+  return buildSuccessResponse(created as object, 201);
 }

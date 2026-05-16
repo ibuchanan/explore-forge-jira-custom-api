@@ -8,7 +8,7 @@
  */
 
 import api, { route } from "@forge/api";
-import type { components } from "../jira-platform-3/types";
+import type { components } from "forge-ahead/jira/platform-3";
 import type { WorkitemResponse } from "./types";
 
 type IssueTypeIssueCreateMetadata =
@@ -100,6 +100,47 @@ export async function createIssue(body: {
     key: created.key ?? "",
     self: created.self ?? "",
   };
+}
+
+/**
+ * Writes OTel trace context as an issue entity property.
+ *
+ * This is best-effort: if the write fails, the error is logged but the
+ * caller is not notified (issue creation is not rolled back).
+ *
+ * @see {@link https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-properties/#api-rest-api-3-issue-issueidorkey-properties-propertykey-put|Jira issue properties API}
+ */
+export async function writeOtelProperty(
+  issueKey: string,
+  otel: {
+    traceId: string;
+    spanId: string;
+    traceFlags?: string;
+    traceState?: string;
+  },
+): Promise<void> {
+  const response = await api
+    .asApp()
+    .requestJira(route`/rest/api/3/issue/${issueKey}/properties/otel`, {
+      method: "PUT",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        traceId: otel.traceId,
+        spanId: otel.spanId,
+        traceFlags: otel.traceFlags ?? "01",
+        traceState: otel.traceState ?? "",
+      }),
+    });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.warn(
+      `[otel] Failed to write issue property for ${issueKey}: ${response.status} ${text}`,
+    );
+  }
 }
 
 /**

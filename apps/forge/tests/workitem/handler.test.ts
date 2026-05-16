@@ -26,6 +26,8 @@ vi.mock("../../src/workitem/field-resolver", async (importOriginal) => {
 vi.mock("../../src/workitem/jira-client", () => ({
   // createIssue is called directly by the handler
   createIssue: vi.fn(),
+  // writeOtelProperty is called post-creation; best-effort so handler never awaits rejection
+  writeOtelProperty: vi.fn().mockResolvedValue(undefined),
   // getIssueTypes and getFieldsForIssueType are used by defaultDeps in field-resolver;
   // they must be present even though handler tests mock resolveFieldNames at a higher level
   getIssueTypes: vi.fn(),
@@ -44,10 +46,15 @@ vi.mock("../../src/workitem/jira-client", () => ({
 
 import { handleWorkitem } from "../../src/workitem/handler";
 import { resolveFieldNames } from "../../src/workitem/field-resolver";
-import { createIssue, JiraApiError } from "../../src/workitem/jira-client";
+import {
+  createIssue,
+  JiraApiError,
+  writeOtelProperty,
+} from "../../src/workitem/jira-client";
 
 const mockResolveFieldNames = vi.mocked(resolveFieldNames);
 const mockCreateIssue = vi.mocked(createIssue);
+const mockWriteOtelProperty = vi.mocked(writeOtelProperty);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -338,5 +345,138 @@ describe("handleWorkitem — Jira API error forwarding", () => {
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/create issue/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OTel — input validation
+// ---------------------------------------------------------------------------
+
+describe("handleWorkitem — OTel input validation", () => {
+  it("returns 400 when traceId is not 32 lowercase hex chars", async () => {
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "Test" },
+        otel: { traceId: "tooshort", spanId: "abcd1234abcd1234" },
+      }),
+    );
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.detail).toMatch(/traceId|issueType|project/i);
+  });
+
+  it("returns 400 when spanId is not 16 lowercase hex chars", async () => {
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "Test" },
+        otel: {
+          traceId: "a".repeat(32),
+          spanId: "UPPERCASE00000000", // uppercase — invalid
+        },
+      }),
+    );
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.detail).toMatch(/spanId|issueType|project/i);
+  });
+
+  it("accepts request without otel field (otel is optional)", async () => {
+    mockResolveFieldNames.mockResolvedValue(
+      ok(new Map([["Summary", "summary"]])),
+    );
+    mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
+
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "No OTel" },
+      }),
+    );
+
+    expect(res.statusCode).toBe(201);
+    expect(mockWriteOtelProperty).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OTel — property write (happy path)
+// ---------------------------------------------------------------------------
+
+describe("handleWorkitem — OTel property write", () => {
+  it("calls writeOtelProperty with issueKey and otel context after creation", async () => {
+    mockResolveFieldNames.mockResolvedValue(
+      ok(new Map([["Summary", "summary"]])),
+    );
+    mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
+    mockWriteOtelProperty.mockResolvedValue(undefined);
+
+    const otel = {
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      traceFlags: "01",
+      traceState: "vendor=abc",
+    };
+
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "OTel Story" },
+        otel,
+      }),
+    );
+
+    expect(res.statusCode).toBe(201);
+    expect(mockWriteOtelProperty).toHaveBeenCalledOnce();
+    expect(mockWriteOtelProperty).toHaveBeenCalledWith(CREATED_ISSUE.key, otel);
+  });
+
+  it("still returns 201 even when writeOtelProperty rejects (best-effort)", async () => {
+    mockResolveFieldNames.mockResolvedValue(
+      ok(new Map([["Summary", "summary"]])),
+    );
+    mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
+    // Simulate a failed property write — should NOT affect the response
+    mockWriteOtelProperty.mockRejectedValue(
+      new Error("Jira property write failed"),
+    );
+
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "OTel Story" },
+        otel: { traceId: "a".repeat(32), spanId: "b".repeat(16) },
+      }),
+    );
+
+    // The handler fires the write as `void` so rejection must not propagate
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.body);
+    expect(body.key).toBe(CREATED_ISSUE.key);
+  });
+
+  it("does not call writeOtelProperty when otel is absent", async () => {
+    mockResolveFieldNames.mockResolvedValue(
+      ok(new Map([["Summary", "summary"]])),
+    );
+    mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
+
+    await handleWorkitem(
+      makeRequest({
+        project: "HSP",
+        issueType: "Story",
+        fields: { Summary: "No OTel" },
+      }),
+    );
+
+    expect(mockWriteOtelProperty).not.toHaveBeenCalled();
   });
 });

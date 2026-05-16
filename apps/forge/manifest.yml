@@ -1,4 +1,15 @@
 modules:
+  jira:entityProperty:
+    - key: otel-issue-property
+      entityType: issue
+      propertyKey: otel
+      values:
+        - path: traceId
+          type: string
+          alias: otelTraceId
+        - path: spanId
+          type: string
+          alias: otelSpanId
   jira:adminPage:
     - key: admin-page
       resource: admin-page-resource

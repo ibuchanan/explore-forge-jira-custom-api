@@ -21,6 +21,41 @@ import { z } from "zod";
  * `update` values follow Jira's update operation format
  * (e.g. `{ "Labels": [{ "add": "bugfix" }] }`).
  */
+/**
+ * Zod schema for the optional OTel (OpenTelemetry) trace context field.
+ *
+ * W3C Trace Context format:
+ * - traceId: 32 lowercase hex chars
+ * - spanId: 16 lowercase hex chars
+ * - traceFlags: optional, defaults to "01"
+ * - traceState: optional, defaults to ""
+ *
+ * @see {@link https://www.w3.org/TR/trace-context/|W3C Trace Context}
+ */
+export const OtelContextSchema = z.object({
+  /** W3C 32-hex-char trace ID */
+  traceId: z
+    .string()
+    .regex(
+      /^[0-9a-f]{32}$/,
+      "traceId must be a 32-character lowercase hex string",
+    ),
+  /** W3C 16-hex-char span ID */
+  spanId: z
+    .string()
+    .regex(
+      /^[0-9a-f]{16}$/,
+      "spanId must be a 16-character lowercase hex string",
+    ),
+  /** W3C trace flags (default "01") */
+  traceFlags: z.string().optional(),
+  /** W3C tracestate header value (default "") */
+  traceState: z.string().optional(),
+});
+
+/** OTel trace context — inferred from {@link OtelContextSchema}. */
+export type OtelContext = z.infer<typeof OtelContextSchema>;
+
 export const WorkitemRequestSchema = z.object({
   /** Jira project key (e.g. "HSP") */
   project: z.string().min(1),
@@ -36,6 +71,11 @@ export const WorkitemRequestSchema = z.object({
    * Optional — used for atomic field-level operations (add/remove/set).
    */
   update: z.record(z.string(), z.unknown()).optional(),
+  /**
+   * OpenTelemetry trace context to store as a Jira issue entity property.
+   * Optional — if absent, no entity property is written.
+   */
+  otel: OtelContextSchema.optional(),
 });
 
 /** Request body for POST /workitem — inferred from {@link WorkitemRequestSchema}. */

@@ -1,4 +1,4 @@
-import { ContentField, ContentType } from "../issue";
+import { type ContentField, ContentType } from "../issue";
 
 interface NamedObject {
   name: string;
