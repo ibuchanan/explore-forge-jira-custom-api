@@ -808,9 +808,7 @@ export function checkApiAuthChain(
  * @param sourceFile - The parsed TypeScript source file
  * @returns Array of violation strings (empty when clean)
  */
-export function findApiAuthViolations(
-  sourceFile: ts.SourceFile,
-): string[] {
+export function findApiAuthViolations(sourceFile: ts.SourceFile): string[] {
   const violations: string[] = [];
 
   const apiRequestMethods = new Set([

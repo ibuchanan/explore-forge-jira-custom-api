@@ -22,7 +22,6 @@ import {
   findCallExpressions,
   findExportedNames,
   getLiteralText,
-  getLineNumber,
   parseSourceFile,
 } from "./ast-helpers";
 import { directoryExists, getAllTypeScriptFiles } from "./filesystem-helpers";
@@ -42,14 +41,11 @@ type InvokeCall = {
 };
 
 function findInvokeCalls(sourceFile: ts.SourceFile): InvokeCall[] {
-  return findCallExpressions(
-    sourceFile,
-    (callName, node) => {
-      if (callName !== INVOKE_FUNCTION_NAME) return false;
-      const firstArg = node.arguments[0];
-      return firstArg !== undefined && ts.isStringLiteral(firstArg);
-    },
-  ).map(({ node, line }) => ({
+  return findCallExpressions(sourceFile, (callName, node) => {
+    if (callName !== INVOKE_FUNCTION_NAME) return false;
+    const firstArg = node.arguments[0];
+    return firstArg !== undefined && ts.isStringLiteral(firstArg);
+  }).map(({ node, line }) => ({
     functionName: (node.arguments[0] as ts.StringLiteral).text,
     line,
   }));

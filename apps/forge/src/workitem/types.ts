@@ -58,7 +58,7 @@ const OtelContextSchema = z.object({
 });
 
 /** OTel trace context — inferred from {@link OtelContextSchema}. */
-type OtelContext = z.infer<typeof OtelContextSchema>;
+export type OtelContext = z.infer<typeof OtelContextSchema>;
 
 export const WorkitemRequestSchema = z.object({
   /** Jira project key (e.g. "HSP") */
@@ -89,7 +89,7 @@ export const WorkitemRequestSchema = z.object({
 });
 
 /** Request body for POST /workitem — inferred from {@link WorkitemRequestSchema}. */
-type WorkitemRequest = z.infer<typeof WorkitemRequestSchema>;
+export type WorkitemRequest = z.infer<typeof WorkitemRequestSchema>;
 
 /**
  * Metadata for a single resolved Jira field.
@@ -112,7 +112,7 @@ export interface FieldResolution {
  * On failure: a {@link ValidationProblemDetails} describing what went wrong,
  * with the `detail` field summarising the problems and `errors` listing each one.
  */
-type FieldResolutionResult = Result<
+export type FieldResolutionResult = Result<
   Map<string, string>,
   ValidationProblemDetails
 >;
@@ -164,7 +164,7 @@ export const InsertAsUserRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/as-user — inferred from {@link InsertAsUserRequestSchema}. */
-type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
+export type InsertAsUserRequest = z.infer<typeof InsertAsUserRequestSchema>;
 
 /**
  * Zod schema for POST /workitem/upsert/as-user request body.
@@ -184,7 +184,7 @@ export const UpsertAsUserRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/upsert/as-user — inferred from {@link UpsertAsUserRequestSchema}. */
-type UpsertAsUserRequest = z.infer<typeof UpsertAsUserRequestSchema>;
+export type UpsertAsUserRequest = z.infer<typeof UpsertAsUserRequestSchema>;
 
 /**
  * Zod schema for POST /workitem/upsert request body.
@@ -203,7 +203,7 @@ export const UpsertRequestSchema = WorkitemRequestSchema.extend({
 });
 
 /** Request body for POST /workitem/upsert — inferred from {@link UpsertRequestSchema}. */
-type UpsertRequest = z.infer<typeof UpsertRequestSchema>;
+export type UpsertRequest = z.infer<typeof UpsertRequestSchema>;
 
 /**
  * Successful response body for POST /workitem.

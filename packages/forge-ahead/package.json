@@ -13,10 +13,22 @@
     "./remote": "./dist/forge/remote/index.mjs",
     "./remote/jwt": "./dist/forge/remote/jwt.mjs",
     "./api": "./dist/api/index.mjs",
-    "./jira/platform-2": "./src/jira/platform-2/types.ts",
-    "./jira/platform-3": "./src/jira/platform-3/types.ts",
-    "./jira/servicedesk": "./src/jira/servicedesk/types.ts",
-    "./jira/software": "./src/jira/software/types.ts",
+    "./jira/platform-2": {
+      "types": "./dist/jira/platform-2.d.mts",
+      "import": "./dist/jira/platform-2.mjs"
+    },
+    "./jira/platform-3": {
+      "types": "./dist/jira/platform-3.d.mts",
+      "import": "./dist/jira/platform-3.mjs"
+    },
+    "./jira/servicedesk": {
+      "types": "./dist/jira/servicedesk.d.mts",
+      "import": "./dist/jira/servicedesk.mjs"
+    },
+    "./jira/software": {
+      "types": "./dist/jira/software.d.mts",
+      "import": "./dist/jira/software.mjs"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",
@@ -39,6 +51,18 @@
       ],
       "api": [
         "./dist/api/index.d.mts"
+      ],
+      "jira/platform-2": [
+        "./dist/jira/platform-2.d.mts"
+      ],
+      "jira/platform-3": [
+        "./dist/jira/platform-3.d.mts"
+      ],
+      "jira/servicedesk": [
+        "./dist/jira/servicedesk.d.mts"
+      ],
+      "jira/software": [
+        "./dist/jira/software.d.mts"
       ]
     }
   },
