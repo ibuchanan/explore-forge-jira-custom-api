@@ -1,0 +1,6 @@
+config:
+  MD013:
+    # 80-char limit for prose; tables and code blocks are exempt
+    line_length: 80
+    tables: false
+    code_blocks: false
