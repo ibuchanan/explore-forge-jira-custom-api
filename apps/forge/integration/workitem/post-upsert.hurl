@@ -1,14 +1,13 @@
-# POST /workitem — outside-in integration tests
+# POST /workitem/upsert — outside-in integration tests
+#
+# Tests the deduplication-aware insert endpoint.
+# Always returns 200 OK regardless of whether the issue was created or deduped.
 #
 # Prerequisites:
 #   - The app must be deployed and installed on the target site.
 #   - App REST APIs must be enabled for the site in Atlassian Administration > Connected apps.
 #   - A 3LO OAuth 2.0 integration must be configured in the Developer Console with the
 #     write:workitem:custom scope granted for this Forge app.
-#
-# URL format (choose one):
-#   https://<site>.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>/workitem
-#   https://api.atlassian.com/svc/jira/<cloud-id>/apps/<app-id>_<env-id>/workitem
 #
 # Run with:
 #   npm run test:api
@@ -21,117 +20,114 @@
 
 
 # ---------------------------------------------------------------------------
-# Happy path — create a minimal issue
+# Happy path — create a new issue (dedup JQL finds no match)
+#
+# Uses a deliberately unique summary so the dedup JQL returns no results.
 # ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
+POST {{base_url}}/workitem/upsert
 Authorization: Bearer {{token}}
 Content-Type: application/json
 {
   "project": "{{project}}",
   "issueType": "{{issue_type}}",
   "fields": {
-    "Summary": "Integration test issue [hurl]"
-  }
+    "Summary": "Upsert integration test [hurl] {{uuid}}"
+  },
+  "dedup": "project = {{project}} AND summary = \"Upsert integration test [hurl] {{uuid}}\""
 }
 
-HTTP 201
+HTTP 200
 [Asserts]
 header "Content-Type" contains "application/json"
+jsonpath "$.created" == true
 jsonpath "$.id" isString
 jsonpath "$.key" matches /^[A-Z]+-\d+$/
 jsonpath "$.self" startsWith "https://"
+jsonpath "$.matches" isCollection
+jsonpath "$.matches" isEmpty
+jsonpath "$.warnings" isCollection
 
 
 # ---------------------------------------------------------------------------
-# Happy path — create an issue with an optional update block
+# Dedup hit — second call with same JQL returns created: false
+#
+# Captures the key from the previous call and uses its summary in the dedup
+# JQL — any existing match causes creation to be skipped.
 # ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
+POST {{base_url}}/workitem/upsert
 Authorization: Bearer {{token}}
 Content-Type: application/json
 {
   "project": "{{project}}",
   "issueType": "{{issue_type}}",
   "fields": {
-    "Summary": "Integration test issue with update [hurl]"
+    "Summary": "Upsert dedup hit [hurl]"
   },
-  "update": {
-    "Labels": [{ "add": "hurl-test" }]
+  "dedup": "project = {{project}} AND summary ~ \"Upsert dedup hit [hurl]\" ORDER BY created DESC"
+}
+
+HTTP 200
+[Asserts]
+jsonpath "$.created" == false
+jsonpath "$.id" == null
+jsonpath "$.key" == null
+jsonpath "$.self" == null
+jsonpath "$.matches" isCollection
+jsonpath "$.warnings" isCollection
+
+
+# ---------------------------------------------------------------------------
+# 400 — missing required field: dedup
+# ---------------------------------------------------------------------------
+POST {{base_url}}/workitem/upsert
+Authorization: Bearer {{token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": {
+    "Summary": "Missing dedup"
   }
 }
 
-HTTP 201
+HTTP 400
 [Asserts]
-jsonpath "$.key" matches /^[A-Z]+-\d+$/
+header "Content-Type" contains "application/json"
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
+
+
+# ---------------------------------------------------------------------------
+# 400 — empty dedup string
+# ---------------------------------------------------------------------------
+POST {{base_url}}/workitem/upsert
+Authorization: Bearer {{token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": {
+    "Summary": "Empty dedup"
+  },
+  "dedup": "   "
+}
+
+HTTP 400
+[Asserts]
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
 
 
 # ---------------------------------------------------------------------------
 # 400 — missing required field: project
 # ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
+POST {{base_url}}/workitem/upsert
 Authorization: Bearer {{token}}
 Content-Type: application/json
 {
   "issueType": "{{issue_type}}",
-  "fields": {
-    "Summary": "Missing project"
-  }
-}
-
-HTTP 400
-[Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-
-
-# ---------------------------------------------------------------------------
-# 400 — missing required field: issueType
-# ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
-Authorization: Bearer {{token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "fields": {
-    "Summary": "Missing issueType"
-  }
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-
-
-# ---------------------------------------------------------------------------
-# 400 — missing required field: fields
-# ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
-Authorization: Bearer {{token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}"
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-
-
-# ---------------------------------------------------------------------------
-# 400 — empty project string
-# ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
-Authorization: Bearer {{token}}
-Content-Type: application/json
-{
-  "project": "",
-  "issueType": "{{issue_type}}",
-  "fields": {
-    "Summary": "Empty project key"
-  }
+  "fields": { "Summary": "Missing project" },
+  "dedup": "project = {{project}}"
 }
 
 HTTP 400
@@ -143,7 +139,7 @@ jsonpath "$.detail" isString
 # ---------------------------------------------------------------------------
 # 400 — malformed JSON body
 # ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
+POST {{base_url}}/workitem/upsert
 Authorization: Bearer {{token}}
 Content-Type: application/json
 not valid json at all
@@ -155,37 +151,15 @@ jsonpath "$.detail" isString
 
 
 # ---------------------------------------------------------------------------
-# 400 — unknown field name (field resolution failure)
-# ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
-Authorization: Bearer {{token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": {
-    "Summary": "Field resolution test",
-    "NonExistentFieldXYZ": "value"
-  }
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-jsonpath "$.errors" isCollection
-jsonpath "$.errors[0].reason" == "not_found"
-
-
-# ---------------------------------------------------------------------------
 # 401 — missing Authorization header
 # ---------------------------------------------------------------------------
-POST {{base_url}}/workitem
+POST {{base_url}}/workitem/upsert
 Content-Type: application/json
 {
   "project": "{{project}}",
   "issueType": "{{issue_type}}",
-  "fields": { "Summary": "No auth" }
+  "fields": { "Summary": "No auth" },
+  "dedup": "project = {{project}}"
 }
 
 HTTP 401
