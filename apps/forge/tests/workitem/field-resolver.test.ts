@@ -96,45 +96,47 @@ describe("resolveFieldNames — success", () => {
     // fallow-ignore-next-line code-duplication
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("Summary")).toBe("summary");
+    expect(result.value.resolved.get("Summary")).toBe("summary");
   });
 
   it("resolves a custom field by display name", async () => {
     const result = await resolveStory(["Story Points"]);
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("Story Points")).toBe("customfield_10016");
+    expect(result.value.resolved.get("Story Points")).toBe("customfield_10016");
   });
 
   it("resolves a field by clause name", async () => {
     const result = await resolveStory(["story_points"]);
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("story_points")).toBe("customfield_10016");
+    expect(result.value.resolved.get("story_points")).toBe("customfield_10016");
   });
 
   it("resolves a field by its raw fieldId", async () => {
     const result = await resolveStory(["customfield_10016"]);
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("customfield_10016")).toBe("customfield_10016");
+    expect(result.value.resolved.get("customfield_10016")).toBe(
+      "customfield_10016",
+    );
   });
 
   it("resolves multiple fields at once", async () => {
     const result = await resolveStory(["Summary", "Story Points", "Assignee"]);
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("Summary")).toBe("summary");
-    expect(result.value.get("Story Points")).toBe("customfield_10016");
-    expect(result.value.get("Assignee")).toBe("assignee");
+    expect(result.value.resolved.get("Summary")).toBe("summary");
+    expect(result.value.resolved.get("Story Points")).toBe("customfield_10016");
+    expect(result.value.resolved.get("Assignee")).toBe("assignee");
   });
 
   it("is case-insensitive for display names", async () => {
     const result = await resolveStory(["story points", "SUMMARY"]);
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("story points")).toBe("customfield_10016");
-    expect(result.value.get("SUMMARY")).toBe("summary");
+    expect(result.value.resolved.get("story points")).toBe("customfield_10016");
+    expect(result.value.resolved.get("SUMMARY")).toBe("summary");
   });
 
   it("resolves issue type name case-insensitively", async () => {
@@ -142,7 +144,16 @@ describe("resolveFieldNames — success", () => {
     // fallow-ignore-next-line code-duplication
     expect(result.isOk()).toBe(true);
     if (result.isErr()) return;
-    expect(result.value.get("Summary")).toBe("summary");
+    expect(result.value.resolved.get("Summary")).toBe("summary");
+  });
+
+  it("returns fieldMetaById mapping for all resolved fields", async () => {
+    const result = await resolveStory(["Story Points"]);
+    expect(result.isOk()).toBe(true);
+    if (result.isErr()) return;
+    const meta = result.value.fieldMetaById.get("customfield_10016");
+    expect(meta).toBeDefined();
+    expect(meta?.name).toBe("Story Points");
   });
 });
 
@@ -167,8 +178,13 @@ describe("resolveFieldNames — errors", () => {
     expect(result.isErr()).toBe(true);
     if (result.isOk()) return;
     expect(result.error.status).toBe(400);
-    expect(result.error.detail).toMatch(/NonExistentField/);
-    expect(result.error.detail).toMatch(/not found/i);
+    // detail is a summary; field names are in errors[]
+    expect(result.error.errors).toBeDefined();
+    const fieldError = result.error.errors?.find(
+      (e) => e.field === "NonExistentField",
+    );
+    expect(fieldError).toBeDefined();
+    expect(fieldError?.reason).toBe("not_found");
   });
 
   it("collects ALL not_found errors before returning", async () => {
@@ -176,9 +192,11 @@ describe("resolveFieldNames — errors", () => {
     expect(result.isErr()).toBe(true);
     if (result.isOk()) return;
     expect(result.error.detail).toMatch(/3 field/i);
-    expect(result.error.detail).toMatch(/FieldA/);
-    expect(result.error.detail).toMatch(/FieldB/);
-    expect(result.error.detail).toMatch(/FieldC/);
+    expect(result.error.errors).toHaveLength(3);
+    const fields = result.error.errors?.map((e) => e.field) ?? [];
+    expect(fields).toContain("FieldA");
+    expect(fields).toContain("FieldB");
+    expect(fields).toContain("FieldC");
   });
 
   it("returns error for ambiguous field name", async () => {
@@ -193,8 +211,12 @@ describe("resolveFieldNames — errors", () => {
     expect(result.isErr()).toBe(true);
     if (result.isOk()) return;
     expect(result.error.status).toBe(400);
-    expect(result.error.detail).toMatch(/ambiguous/i);
-    expect(result.error.detail).toMatch(/Priority Score/);
+    const fieldError = result.error.errors?.find(
+      (e) => e.field === "Priority Score",
+    );
+    expect(fieldError).toBeDefined();
+    expect(fieldError?.reason).toBe("ambiguous");
+    expect(fieldError?.message).toMatch(/ambiguous/i);
   });
 
   it("mixes not_found and valid results, collecting all errors", async () => {
@@ -202,7 +224,11 @@ describe("resolveFieldNames — errors", () => {
     // fallow-ignore-next-line code-duplication
     expect(result.isErr()).toBe(true);
     if (result.isOk()) return;
-    expect(result.error.detail).toMatch(/MissingField/);
+    const fieldError = result.error.errors?.find(
+      (e) => e.field === "MissingField",
+    );
+    expect(fieldError).toBeDefined();
+    expect(fieldError?.reason).toBe("not_found");
   });
 });
 

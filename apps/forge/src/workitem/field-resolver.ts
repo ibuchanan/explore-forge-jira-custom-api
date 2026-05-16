@@ -11,21 +11,18 @@
  * @see {@link https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-types/#api-rest-api-3-issue-createmeta-projectidorkey-issuetypes-issuetypeid-get|Create meta fields}
  */
 
-import { ok, StandardError } from "forge-ahead";
+import { err, ok, type Result } from "forge-ahead";
+import type { ValidationProblemDetails } from "forge-ahead";
 import type { components } from "forge-ahead/jira/platform-3";
 import { getFieldsForIssueType, getIssueTypes } from "./jira-client";
-import type {
-  FieldResolution,
-  FieldResolutionError,
-  FieldResolutionResult,
-} from "./types";
+import type { FieldResolution, FieldResolutionError } from "./types";
 
 /**
  * Jira's createmeta field endpoint returns `clauseNames` in practice, but it is
  * not included in the published OpenAPI schema. Extend `FieldCreateMetadata` to
  * capture it so the resolver can build complete name aliases.
  */
-type JiraFieldMeta = components["schemas"]["FieldCreateMetadata"] & {
+export type JiraFieldMeta = components["schemas"]["FieldCreateMetadata"] & {
   clauseNames?: string[];
 };
 
@@ -41,6 +38,17 @@ export interface FieldResolverDeps {
     projectKey: string,
     issueTypeId: string,
   ) => Promise<JiraFieldMeta[]>;
+}
+
+/**
+ * Successful result of resolving field names — carries both the name→id map
+ * and the full field metadata (needed downstream for value coercion).
+ */
+export interface FieldResolutionSuccess {
+  /** Maps caller field name → Jira field ID */
+  resolved: Map<string, string>;
+  /** Maps Jira field ID → full field metadata (for coercion) */
+  fieldMetaById: Map<string, JiraFieldMeta>;
 }
 
 /** Default production dependencies */
@@ -96,18 +104,21 @@ function buildFieldIndex(
  * Resolves a set of human-readable field names to Jira field IDs for a
  * specific project + issue type.
  *
- * @param projectKey   - Jira project key, e.g. "HSP"
+ * Returns both the name→id map AND the full field metadata so the caller
+ * can perform value coercion in a second phase without re-fetching.
+ *
+ * @param projectKey    - Jira project key, e.g. "HSP"
  * @param issueTypeName - Issue type display name, e.g. "Story"
- * @param names        - Set of field names to resolve (from fields + update maps)
- * @param deps         - Injectable dependencies (defaults to real Jira client)
- * @returns A discriminated union: `{ ok: true, resolved }` or `{ ok: false, errors }`
+ * @param names         - Set of field names to resolve (from fields map)
+ * @param deps          - Injectable dependencies (defaults to real Jira client)
+ * @returns ok(FieldResolutionSuccess) or err(ValidationProblemDetails)
  */
 export async function resolveFieldNames(
   projectKey: string,
   issueTypeName: string,
   names: ReadonlySet<string>,
   deps: FieldResolverDeps = defaultDeps,
-): Promise<FieldResolutionResult> {
+): Promise<Result<FieldResolutionSuccess, ValidationProblemDetails>> {
   // 1. Find the issue type by name (case-insensitive)
   const issueTypes = await deps.getIssueTypes(projectKey);
   const issueType = issueTypes.find(
@@ -115,17 +126,35 @@ export async function resolveFieldNames(
   );
 
   if (!issueType) {
-    return StandardError.getOrDefault(400).error(
-      `Issue type "${issueTypeName}" not found in project "${projectKey}"`,
-    );
+    const problem: ValidationProblemDetails = {
+      type: "https://httpstatuses.io/400",
+      title: "Bad Request",
+      status: 400,
+      detail: `Issue type "${issueTypeName}" not found in project "${projectKey}"`,
+      timestamp: new Date().toISOString(),
+      errors: [
+        {
+          field: "issueType",
+          reason: "not_found",
+          message: `Issue type "${issueTypeName}" not found in project "${projectKey}"`,
+        },
+      ],
+    };
+    return err(problem);
   }
 
-  // 2. Fetch all fields for this project + issue type
+  // 2. Fetch all fields for this project + issue type (paginated via jira-client)
   const fields = await deps.getFieldsForIssueType(
     projectKey,
     issueType.id ?? "",
   );
   const index = buildFieldIndex(fields);
+
+  // Build fieldMetaById for downstream coercion
+  const fieldMetaById = new Map<string, JiraFieldMeta>();
+  for (const field of fields) {
+    fieldMetaById.set(field.fieldId, field);
+  }
 
   // 3. Resolve every requested name, collecting all errors
   const resolved = new Map<string, string>();
@@ -150,19 +179,25 @@ export async function resolveFieldNames(
   }
 
   if (errors.length > 0) {
-    const summary = errors
-      .map((e) =>
-        e.reason === "ambiguous"
-          ? `"${e.name}" is ambiguous — matches: ${(e.matches ?? []).join(", ")}`
-          : `"${e.name}" not found in project "${projectKey}" for issue type "${issueTypeName}"`,
-      )
-      .join("; ");
-    return StandardError.getOrDefault(400).error(
-      `Could not resolve ${errors.length} field name(s): ${summary}`,
-    );
+    const problem: ValidationProblemDetails = {
+      type: "https://httpstatuses.io/400",
+      title: "Bad Request",
+      status: 400,
+      detail: `Field name resolution failed for ${errors.length} field(s).`,
+      timestamp: new Date().toISOString(),
+      errors: errors.map((e) => ({
+        field: e.name,
+        reason: e.reason,
+        message:
+          e.reason === "ambiguous"
+            ? `'${e.name}' is ambiguous — matches: ${(e.matches ?? []).join(", ")}`
+            : `No field named '${e.name}' for project ${projectKey} / ${issueTypeName}.`,
+      })),
+    };
+    return err(problem);
   }
 
-  return ok(resolved);
+  return ok({ resolved, fieldMetaById });
 }
 
 /**

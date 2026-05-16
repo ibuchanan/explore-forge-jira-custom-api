@@ -80,31 +80,3 @@ export interface ChangeFields {
   testPlan: string;
   backoutPlan: string;
 }
-
-interface ChangeCard {
-  key: string;
-  url: string;
-  issuetype: string;
-  summary: string;
-  reporter: string;
-  components?: string[];
-  // attachment?: ?
-  description?: string;
-  linkedIssues?: string[];
-  assignee?: string;
-  priority?: string;
-  approvers?: string[];
-  organizations?: string[];
-  impact?: string;
-  urgency?: string;
-  changeType?: string;
-  changeReason?: string;
-  changeRisk?: string;
-  // plannedStart?: ResultDate;
-  // plannedEnd?: ResultDate;
-  status: string;
-  // updated: ResultDate;
-  implmementationPlan: string;
-  testPlan: string;
-  backoutPlan: string;
-}

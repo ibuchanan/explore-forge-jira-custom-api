@@ -1,4 +1,5 @@
 import * as jmespath from "jmespath";
+import type { JSONValue } from "../forge/types";
 import type { NamedObject } from "./api";
 
 export interface ContentFields {
@@ -43,7 +44,7 @@ export interface ResultIssue<T> {
 //   priority?: string;
 // }
 
-type RequestedFields = Record<string, any>;
+type RequestedFields = Record<string, JSONValue>;
 
 export interface SpecifiedFields {
   key: string;
@@ -66,8 +67,10 @@ export function mapResultToCard(
   const specified: SpecifiedFields = {
     key: jiraApiResponse.key,
     url: jiraApiResponse.self,
-    summary: jiraApiResponse.fields.summary,
-    description: jiraApiResponse.renderedFields?.description,
+    summary: jiraApiResponse.fields.summary as string,
+    description: jiraApiResponse.renderedFields?.description as
+      | string
+      | undefined,
   };
   // console.debug(`specified: ${JSON.stringify(specified)}`);
   const frontmatter: Record<string, string | string[]> = realizedFields.reduce(
@@ -86,7 +89,7 @@ export function mapResultToCard(
       // applied to the data from Jira.
       if (jiraApiResponse === undefined) return acc;
       // console.debug(`"${f.name}" jiraApiResponse field: ${JSON.stringify(jiraApiResponse.fields[f.key])}`);
-      acc[f.name] = mapperFunction(jiraApiResponse.fields[f.key]);
+      acc[f.name] = mapperFunction(jiraApiResponse.fields[f.key] ?? null);
       return acc;
     },
     {} as Record<string, string | string[]>,
@@ -105,7 +108,9 @@ export function mapResultToCard(
       // using the appropriate mapper,
       // applied to the data from Jira.
       if (jiraApiResponse.renderedFields === undefined) return acc;
-      acc[f.name] = mapperFunction(jiraApiResponse.renderedFields[f.key]);
+      acc[f.name] = mapperFunction(
+        jiraApiResponse.renderedFields[f.key] ?? null,
+      );
       return acc;
     },
     {} as Record<string, string>,
@@ -196,32 +201,32 @@ function getFieldFromMeta(name: string, meta: Meta) {
   return undefined;
 }
 
-function adf2md(o: any) {
+function adf2md(_o: JSONValue) {
   // TODO: implement ADF to MD
   return "";
 }
 
-type MetaSchemaTypeStringFunction = (o: any) => string;
-type MetaSchemaTypeStringArrayFunction = (o: any) => Array<string>;
+type MetaSchemaTypeStringFunction = (o: JSONValue) => string;
+type MetaSchemaTypeStringArrayFunction = (o: JSONValue) => Array<string>;
 type MetaSchemaTypes = Record<string, MetaSchemaTypeStringFunction>;
 type MetaSchemaArrayTypes = Record<string, MetaSchemaTypeStringArrayFunction>;
 
 const mapMetaToString: MetaSchemaTypes = {
-  issuetype: (o: any) => o.name,
-  string: (o: any) => o,
-  user: (o: any) => o.displayName,
-  description: (o: any) => adf2md(o), // Or get this from renderedFields
-  priority: (o: any) => o.name,
-  option: (o: any) => o.value,
-  datetime: (o: any) => o,
-  status: (o: any) => o.name,
+  issuetype: (o) => (o as { name: string }).name,
+  string: (o) => o as string,
+  user: (o) => (o as { displayName: string }).displayName,
+  description: (o) => adf2md(o), // Or get this from renderedFields
+  priority: (o) => (o as { name: string }).name,
+  option: (o) => (o as { value: string }).value,
+  datetime: (o) => o as string,
+  status: (o) => (o as { name: string }).name,
 };
 
-const mapArrayToStringArray: MetaSchemaArrayTypes = {
-  component: (o: any) => [""],
-  attachment: (o: any) => [""],
-  issuelinks: (o: any) => [""],
-  string: (o: any) => [""],
-  user: (o: any) => [""],
-  "sd-customerorganization": (o: any) => [""],
+const _mapArrayToStringArray: MetaSchemaArrayTypes = {
+  component: (_o) => [""],
+  attachment: (_o) => [""],
+  issuelinks: (_o) => [""],
+  string: (_o) => [""],
+  user: (_o) => [""],
+  "sd-customerorganization": (_o) => [""],
 };

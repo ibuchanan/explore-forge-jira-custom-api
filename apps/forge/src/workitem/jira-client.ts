@@ -22,15 +22,20 @@ type CreatedIssue = components["schemas"]["CreatedIssue"];
 
 /**
  * Fetches all issue types available for a project via the create-meta endpoint.
+ *
+ * @param projectKey - Jira project key (e.g. "HSP")
+ * @param caller     - Which identity to use: `asUser()` or `asApp()`
  */
 export async function getIssueTypes(
   projectKey: string,
+  caller: "asUser" | "asApp" = "asUser",
 ): Promise<IssueTypeIssueCreateMetadata[]> {
-  const response = await api
-    .asUser()
-    .requestJira(route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes`, {
-      headers: { Accept: "application/json" },
-    });
+  const url = route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes`;
+  const response = await (caller === "asApp"
+    ? api.asApp().requestJira(url, { headers: { Accept: "application/json" } })
+    : api
+        .asUser()
+        .requestJira(url, { headers: { Accept: "application/json" } }));
 
   if (!response.ok) {
     throw new Error(
@@ -45,30 +50,52 @@ export async function getIssueTypes(
 }
 
 /**
- * Fetches all field definitions for a specific project + issue type combination.
+ * Fetches ALL field definitions for a specific project + issue type combination.
+ *
+ * The createMeta fields endpoint is paginated. Jira Cloud caps maxResults
+ * server-side, so this fetches all pages in a loop until `isLast: true`.
+ *
+ * @param projectKey   - Jira project key (e.g. "HSP")
+ * @param issueTypeId  - Jira issue type ID (e.g. "10001")
+ * @param caller       - Which identity to use: `asUser()` or `asApp()`
  */
 export async function getFieldsForIssueType(
   projectKey: string,
   issueTypeId: string,
+  caller: "asUser" | "asApp" = "asUser",
 ): Promise<FieldCreateMetadata[]> {
-  const response = await api
-    .asUser()
-    .requestJira(
-      route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes/${issueTypeId}`,
-      {
-        headers: { Accept: "application/json" },
-      },
-    );
+  const allFields: FieldCreateMetadata[] = [];
+  let startAt = 0;
+  let isLast = false;
 
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch fields for project ${projectKey}, issueType ${issueTypeId}: ${response.status} ${response.statusText}`,
-    );
+  while (!isLast) {
+    const url = route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes/${issueTypeId}?startAt=${startAt}&maxResults=50`;
+
+    const response = await (caller === "asApp"
+      ? api
+          .asApp()
+          .requestJira(url, { headers: { Accept: "application/json" } })
+      : api
+          .asUser()
+          .requestJira(url, { headers: { Accept: "application/json" } }));
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch fields for project ${projectKey}, issueType ${issueTypeId}: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as PageOfCreateMetaIssueTypeWithField;
+    const pageFields = data.fields ?? data.results ?? [];
+    allFields.push(...pageFields);
+
+    // isLast is a boolean on PageOfCreateMetaIssueTypeWithField; fall back to
+    // empty page as termination signal for APIs that don't set it.
+    isLast = (data as { isLast?: boolean }).isLast ?? pageFields.length === 0;
+    startAt += pageFields.length;
   }
 
-  const data = (await response.json()) as PageOfCreateMetaIssueTypeWithField;
-
-  return data.fields ?? data.results ?? [];
+  return allFields;
 }
 
 /**

@@ -6,7 +6,7 @@
  * validation, error aggregation, translation, and Jira proxying.
  */
 
-import { ok, StandardError } from "forge-ahead";
+import { err, ok } from "forge-ahead";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -64,12 +64,19 @@ function makeRequest(body: unknown): { body: string } {
   return { body: JSON.stringify(body) };
 }
 
-const SUCCESS_RESOLUTION = ok(
-  new Map([
+function makeResolution(
+  entries: [string, string][] = [
     ["Summary", "summary"],
     ["Story Points", "customfield_10016"],
-  ]),
-);
+  ],
+) {
+  return ok({
+    resolved: new Map(entries),
+    fieldMetaById: new Map<string, unknown>(),
+  });
+}
+
+const SUCCESS_RESOLUTION = makeResolution();
 
 const CREATED_ISSUE = {
   id: "10001",
@@ -132,9 +139,20 @@ describe("handleWorkitem — input validation", () => {
 describe("handleWorkitem — field resolution errors", () => {
   it("returns 400 with detail for not_found fields", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      StandardError.getOrDefault(400).error(
-        'Could not resolve 1 field name(s): "Unknown Field" not found in project "HSP" for issue type "Story"',
-      ),
+      err({
+        type: "https://httpstatuses.io/400",
+        title: "Bad Request",
+        status: 400,
+        detail: "Field name resolution failed for 1 field(s).",
+        timestamp: new Date().toISOString(),
+        errors: [
+          {
+            field: "Unknown Field",
+            reason: "not_found" as const,
+            message: "No field named 'Unknown Field'.",
+          },
+        ],
+      }),
     );
 
     const res = await handleWorkitem(
@@ -149,14 +167,26 @@ describe("handleWorkitem — field resolution errors", () => {
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/1 field/i);
-    expect(body.detail).toMatch(/not found/i);
+    expect(body.errors[0].reason).toBe("not_found");
   });
 
   it("returns 400 with detail for ambiguous fields", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      StandardError.getOrDefault(400).error(
-        '"Priority Score" is ambiguous — matches: Priority Score (customfield_10100), Priority Score (customfield_10200)',
-      ),
+      err({
+        type: "https://httpstatuses.io/400",
+        title: "Bad Request",
+        status: 400,
+        detail: "Field name resolution failed for 1 field(s).",
+        timestamp: new Date().toISOString(),
+        errors: [
+          {
+            field: "Priority Score",
+            reason: "ambiguous" as const,
+            message:
+              "'Priority Score' is ambiguous — matches: Priority Score (customfield_10100), Priority Score (customfield_10200)",
+          },
+        ],
+      }),
     );
 
     const res = await handleWorkitem(
@@ -169,14 +199,35 @@ describe("handleWorkitem — field resolution errors", () => {
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
-    expect(body.detail).toMatch(/ambiguous/i);
+    expect(body.errors[0].reason).toBe("ambiguous");
   });
 
   it("returns all errors at once (multiple failures)", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      StandardError.getOrDefault(400).error(
-        'Could not resolve 3 field name(s): "FieldA" not found in project "HSP" for issue type "Story"; "FieldB" not found in project "HSP" for issue type "Story"; "FieldC" is ambiguous — matches: FieldC (cf1), FieldC (cf2)',
-      ),
+      err({
+        type: "https://httpstatuses.io/400",
+        title: "Bad Request",
+        status: 400,
+        detail: "Field name resolution failed for 3 field(s).",
+        timestamp: new Date().toISOString(),
+        errors: [
+          {
+            field: "FieldA",
+            reason: "not_found" as const,
+            message: "No field named 'FieldA'.",
+          },
+          {
+            field: "FieldB",
+            reason: "not_found" as const,
+            message: "No field named 'FieldB'.",
+          },
+          {
+            field: "FieldC",
+            reason: "ambiguous" as const,
+            message: "'FieldC' is ambiguous.",
+          },
+        ],
+      }),
     );
 
     const res = await handleWorkitem(
@@ -191,6 +242,7 @@ describe("handleWorkitem — field resolution errors", () => {
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/3 field/i);
+    expect(body.errors).toHaveLength(3);
   });
 
   it("returns 500 when the field resolver throws", async () => {
@@ -259,12 +311,10 @@ describe("handleWorkitem — successful creation", () => {
   });
 
   it("includes translated update map when provided", async () => {
-    const resolutionWithLabels = ok(
-      new Map([
-        ["Summary", "summary"],
-        ["Labels", "labels"],
-      ]),
-    );
+    const resolutionWithLabels = makeResolution([
+      ["Summary", "summary"],
+      ["Labels", "labels"],
+    ]);
     mockResolveFieldNames.mockResolvedValue(resolutionWithLabels);
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
@@ -286,7 +336,7 @@ describe("handleWorkitem — successful creation", () => {
 
   it("omits update key when no update fields provided", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      ok(new Map([["Summary", "summary"]])),
+      makeResolution([["Summary", "summary"]]),
     );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
@@ -388,7 +438,7 @@ describe("handleWorkitem — OTel input validation", () => {
 
   it("accepts request without otel field (otel is optional)", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      ok(new Map([["Summary", "summary"]])),
+      makeResolution([["Summary", "summary"]]),
     );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
@@ -412,7 +462,7 @@ describe("handleWorkitem — OTel input validation", () => {
 describe("handleWorkitem — OTel property write", () => {
   it("calls writeOtelProperty with issueKey and otel context after creation", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      ok(new Map([["Summary", "summary"]])),
+      makeResolution([["Summary", "summary"]]),
     );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
     mockWriteOtelProperty.mockResolvedValue(undefined);
@@ -440,7 +490,7 @@ describe("handleWorkitem — OTel property write", () => {
 
   it("still returns 201 even when writeOtelProperty rejects (best-effort)", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      ok(new Map([["Summary", "summary"]])),
+      makeResolution([["Summary", "summary"]]),
     );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
     // Simulate a failed property write — should NOT affect the response
@@ -465,7 +515,7 @@ describe("handleWorkitem — OTel property write", () => {
 
   it("does not call writeOtelProperty when otel is absent", async () => {
     mockResolveFieldNames.mockResolvedValue(
-      ok(new Map([["Summary", "summary"]])),
+      makeResolution([["Summary", "summary"]]),
     );
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 

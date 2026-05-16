@@ -76,6 +76,7 @@
   "dependencies": {
     "@forge/api": "^7.1",
     "@forge/kvs": "^1.6",
+    "jmespath": "^0.16.0",
     "jose": "^6.2",
     "neverthrow": "^8.2",
     "yaml": "^2.9"

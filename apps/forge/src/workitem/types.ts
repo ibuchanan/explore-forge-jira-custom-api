@@ -9,7 +9,11 @@
  * @see {@link https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-post|Jira Create Issue}
  */
 
-import type { ProblemDetails, Result } from "forge-ahead";
+import type {
+  ProblemDetails,
+  Result,
+  ValidationProblemDetails,
+} from "forge-ahead";
 import { z } from "zod";
 
 /**
@@ -99,10 +103,13 @@ export interface FieldResolution {
 /**
  * Result of resolving all field names in a request.
  * On success: every input name maps to exactly one field key.
- * On failure: a {@link ProblemDetails} (RFC 9457) describing what went wrong,
- * with the `detail` field listing every unresolvable or ambiguous name.
+ * On failure: a {@link ValidationProblemDetails} describing what went wrong,
+ * with the `detail` field summarising the problems and `errors` listing each one.
  */
-export type FieldResolutionResult = Result<Map<string, string>, ProblemDetails>;
+export type FieldResolutionResult = Result<
+  Map<string, string>,
+  ValidationProblemDetails
+>;
 
 /**
  * A single field-name resolution failure.

@@ -55,6 +55,57 @@ export interface ProblemDetails {
 }
 
 /**
+ * A single per-field validation error.
+ *
+ * Used in {@link ValidationProblemDetails} to give callers a structured list
+ * of every field that failed validation so they can fix all problems at once.
+ */
+export interface ValidationError {
+  /** The caller's original field name (not the resolved Jira field ID). */
+  field: string;
+  /**
+   * Machine-readable failure code:
+   * - `not_found`      — no field in the project/issue type matches the name
+   * - `ambiguous`      — multiple distinct fields share the same normalised name
+   * - `invalid_value`  — the value is not in the field's allowed values list
+   * - `unsupported_type` — the field type has no registered coercion handler
+   * - `required`       — a required field is missing
+   */
+  reason:
+    | "not_found"
+    | "ambiguous"
+    | "invalid_value"
+    | "unsupported_type"
+    | "required";
+  /** Human-readable explanation of this specific error. */
+  message: string;
+}
+
+/**
+ * RFC 9457 Problem Details extended with a per-field `errors` array.
+ *
+ * Used for all 400 validation responses so callers see every problem in
+ * one response rather than discovering failures one at a time.
+ *
+ * @example
+ * ```json
+ * {
+ *   "type": "https://httpstatuses.io/400",
+ *   "title": "Bad Request",
+ *   "status": 400,
+ *   "detail": "Field name resolution failed for 2 fields.",
+ *   "timestamp": "2026-05-16T12:00:00.000Z",
+ *   "errors": [
+ *     { "field": "Urgancy", "reason": "not_found", "message": "No field named 'Urgancy'." }
+ *   ]
+ * }
+ * ```
+ */
+export interface ValidationProblemDetails extends ProblemDetails {
+  errors?: ValidationError[];
+}
+
+/**
  * Standard HTTP error class that creates RFC 9457 compliant error responses
  * wrapped in neverthrow Results.
  *
