@@ -4,13 +4,13 @@
  * Uses injected mock dependencies so no Jira network calls are made.
  */
 
+import type { components } from "forge-ahead/jira/platform-3";
 import { describe, expect, it } from "vitest";
+import type { FieldResolverDeps } from "../../src/workitem/field-resolver";
 import {
   resolveFieldNames,
   translateKeys,
 } from "../../src/workitem/field-resolver";
-import type { FieldResolverDeps } from "../../src/workitem/field-resolver";
-import type { components } from "../../src/jira-platform-3/types";
 
 type JiraFieldMeta = components["schemas"]["FieldCreateMetadata"] & {
   clauseNames?: string[];

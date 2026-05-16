@@ -12,7 +12,7 @@
  */
 
 import { ok, StandardError } from "forge-ahead";
-import type { components } from "../jira-platform-3/types";
+import type { components } from "forge-ahead/jira/platform-3";
 import { getFieldsForIssueType, getIssueTypes } from "./jira-client";
 import type {
   FieldResolution,

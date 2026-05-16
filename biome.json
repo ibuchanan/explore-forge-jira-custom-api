@@ -10,10 +10,10 @@
     "ignoreUnknown": false,
     "includes": [
       "**/*",
-      "!apps/forge/src/jira-platform-2/types.ts",
-      "!apps/forge/src/jira-platform-3/types.ts",
-      "!apps/forge/src/jira-servicedesk/types.ts",
-      "!apps/forge/src/jira-software/types.ts"
+      "!packages/forge-ahead/src/jira/platform-2/types.ts",
+      "!packages/forge-ahead/src/jira/platform-3/types.ts",
+      "!packages/forge-ahead/src/jira/servicedesk/types.ts",
+      "!packages/forge-ahead/src/jira/software/types.ts"
     ]
   },
   "formatter": {
