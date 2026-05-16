@@ -18,7 +18,13 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-import { getLineNumber, parseSourceFile } from "./ast-helpers";
+import {
+  findCallExpressions,
+  findExportedNames,
+  getLiteralText,
+  getLineNumber,
+  parseSourceFile,
+} from "./ast-helpers";
 import { directoryExists, getAllTypeScriptFiles } from "./filesystem-helpers";
 import {
   getModuleResolvers,
@@ -36,49 +42,29 @@ type InvokeCall = {
 };
 
 function findInvokeCalls(sourceFile: ts.SourceFile): InvokeCall[] {
-  const results: InvokeCall[] = [];
-
-  function visit(node: ts.Node) {
-    if (ts.isCallExpression(node)) {
-      const callName = getCallName(node.expression);
-
-      if (callName === INVOKE_FUNCTION_NAME) {
-        const [firstArg] = node.arguments;
-        if (firstArg && ts.isStringLiteral(firstArg)) {
-          results.push({
-            functionName: firstArg.text,
-            line: getLineNumber(sourceFile, node),
-          });
-        }
-      }
-    }
-
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
-  return results;
+  return findCallExpressions(
+    sourceFile,
+    (callName, node) => {
+      if (callName !== INVOKE_FUNCTION_NAME) return false;
+      const firstArg = node.arguments[0];
+      return firstArg !== undefined && ts.isStringLiteral(firstArg);
+    },
+  ).map(({ node, line }) => ({
+    functionName: (node.arguments[0] as ts.StringLiteral).text,
+    line,
+  }));
 }
 
 function findResolverDefinitions(sourceFile: ts.SourceFile): Set<string> {
   const results = new Set<string>();
-
-  function visit(node: ts.Node) {
-    if (ts.isCallExpression(node)) {
-      const callName = getCallName(node.expression);
-
-      if (callName === RESOLVER_DEFINE_FUNCTION_NAME) {
-        const [firstArg] = node.arguments;
-        if (firstArg && ts.isStringLiteral(firstArg)) {
-          results.add(firstArg.text);
-        }
-      }
-    }
-
-    ts.forEachChild(node, visit);
+  for (const { node } of findCallExpressions(
+    sourceFile,
+    (callName) => callName === RESOLVER_DEFINE_FUNCTION_NAME,
+  )) {
+    const firstArg = node.arguments[0];
+    const text = firstArg ? getLiteralText(firstArg) : null;
+    if (text !== null) results.add(text);
   }
-
-  visit(sourceFile);
   return results;
 }
 
@@ -86,95 +72,38 @@ function isResolverDefinitionsExport(
   sourceFile: ts.SourceFile,
   exportName: string,
 ): boolean {
+  const exportedNames = findExportedNames(sourceFile);
+  if (!exportedNames.has(exportName)) return false;
+
+  // Verify the export is initialised with a getDefinitions() call
   for (const statement of sourceFile.statements) {
-    if (!isExportedStatement(statement)) {
-      continue;
-    }
+    if (!ts.isVariableStatement(statement)) continue;
+    const isExported = Boolean(
+      ts.getCombinedModifierFlags(statement as ts.Declaration) &
+        ts.ModifierFlags.Export,
+    );
+    if (!isExported) continue;
 
-    if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name)) {
-          continue;
-        }
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name)) continue;
+      if (declaration.name.text !== exportName) continue;
 
-        if (declaration.name.text !== exportName) {
-          continue;
-        }
-
-        const initializer = declaration.initializer;
-        if (initializer && ts.isCallExpression(initializer)) {
-          const callName = getCallName(initializer.expression);
-          if (callName === RESOLVER_GET_DEFINITIONS_NAME) {
-            return true;
-          }
-        }
+      const init = declaration.initializer;
+      if (init && ts.isCallExpression(init)) {
+        const name = ts.isIdentifier(init.expression)
+          ? init.expression.text
+          : ts.isPropertyAccessExpression(init.expression)
+            ? init.expression.name.text
+            : null;
+        if (name === RESOLVER_GET_DEFINITIONS_NAME) return true;
       }
     }
   }
-
   return false;
-}
-
-function findExportedNames(sourceFile: ts.SourceFile): Set<string> {
-  const results = new Set<string>();
-
-  for (const statement of sourceFile.statements) {
-    if (!isExportedStatement(statement)) {
-      if (ts.isExportDeclaration(statement)) {
-        const exportClause = statement.exportClause;
-        if (exportClause && ts.isNamedExports(exportClause)) {
-          for (const element of exportClause.elements) {
-            results.add(element.name.text);
-          }
-        }
-      }
-
-      continue;
-    }
-
-    if (ts.isFunctionDeclaration(statement) && statement.name) {
-      results.add(statement.name.text);
-      continue;
-    }
-
-    if (ts.isClassDeclaration(statement) && statement.name) {
-      results.add(statement.name.text);
-      continue;
-    }
-
-    if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name)) {
-          results.add(declaration.name.text);
-        }
-      }
-    }
-  }
-
-  return results;
 }
 
 function findExportedFunctionNames(sourceFile: ts.SourceFile): string[] {
   return Array.from(findExportedNames(sourceFile));
-}
-
-function isExportedStatement(statement: ts.Statement): boolean {
-  return Boolean(
-    ts.getCombinedModifierFlags(statement as ts.Declaration) &
-      ts.ModifierFlags.Export,
-  );
-}
-
-function getCallName(expression: ts.Expression): string | null {
-  if (ts.isIdentifier(expression)) {
-    return expression.text;
-  }
-
-  if (ts.isPropertyAccessExpression(expression)) {
-    return expression.name.text;
-  }
-
-  return null;
 }
 
 describe("Frontend Invoke Validation", () => {

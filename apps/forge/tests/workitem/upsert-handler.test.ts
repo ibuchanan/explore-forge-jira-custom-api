@@ -14,7 +14,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ok, err } from "forge-ahead";
+import { err } from "forge-ahead";
+import { makeRequest, makeResolution } from "./test-helpers";
 import { handleWorkitemUpsert } from "../../src/workitem/upsert-handler";
 import { resolveFieldNames } from "../../src/workitem/field-resolver";
 
@@ -70,20 +71,7 @@ const mockSearchIssues = vi.mocked(searchIssues);
 const mockCreateIssue = vi.mocked(createIssue);
 const mockWriteOtelProperty = vi.mocked(writeOtelProperty);
 
-function makeRequest(body: unknown): { body: string } {
-  return { body: JSON.stringify(body) };
-}
-
-function makeResolution(
-  entries: [string, string][] = [["Summary", "summary"]],
-) {
-  return ok({
-    resolved: new Map(entries),
-    fieldMetaById: new Map(
-      entries.map(([, id]) => [id, { schema: { type: "string" } }]),
-    ),
-  });
-}
+// makeRequest and makeResolution are imported from ./test-helpers
 
 const CREATED_ISSUE = {
   id: "10042",

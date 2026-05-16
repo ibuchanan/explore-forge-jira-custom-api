@@ -749,6 +749,94 @@ export function checkRequestJiraArguments(
 }
 
 /**
+ * Check whether a `requestJira` / `requestConfluence` / `requestBitbucket` call
+ * is preceded by a valid auth chain: `.asUser()`, `.asApp()`, or an `authClient`
+ * identifier (a pre-authenticated client passed as a parameter).
+ *
+ * Returns a violation string when the rule is broken, or null when the call is valid.
+ *
+ * Valid patterns (the receiver of the request method):
+ *   api.asUser().requestJira(...)
+ *   api.asApp().requestJira(...)
+ *   authClient.requestJira(...)
+ *
+ * @param sourceFile - The parsed source file
+ * @param node - The call expression node for requestJira / requestConfluence / requestBitbucket
+ * @returns A violation message, or null if the call is valid
+ */
+export function checkApiAuthChain(
+  sourceFile: ts.SourceFile,
+  node: ts.CallExpression,
+): string | null {
+  // The node must be a property access: <receiver>.requestJira(...)
+  if (!ts.isPropertyAccessExpression(node.expression)) {
+    return null; // bare requestJira(...) — not an @forge/api pattern, skip
+  }
+
+  const methodName = node.expression.name.text;
+  const receiver = node.expression.expression;
+
+  // authClient.requestJira(...) — pre-authenticated client, valid
+  if (ts.isIdentifier(receiver) && receiver.text === "authClient") {
+    return null;
+  }
+
+  // api.asUser().requestJira(...) or api.asApp().requestJira(...)
+  // receiver should itself be a call expression: api.asUser() or api.asApp()
+  if (ts.isCallExpression(receiver)) {
+    if (ts.isPropertyAccessExpression(receiver.expression)) {
+      const authMethod = receiver.expression.name.text;
+      if (authMethod === "asUser" || authMethod === "asApp") {
+        return null;
+      }
+    }
+  }
+
+  return (
+    `${methodName} called without .asUser() or .asApp() auth chain. ` +
+    `Use api.asUser().${methodName}() or api.asApp().${methodName}(). ` +
+    describeCallsite(sourceFile, node)
+  );
+}
+
+/**
+ * Scan a source file for `requestJira` / `requestConfluence` / `requestBitbucket`
+ * calls that lack a valid auth chain (.asUser() or .asApp()).
+ *
+ * Skips frontend files (they use @forge/bridge, not @forge/api) and comments.
+ *
+ * @param sourceFile - The parsed TypeScript source file
+ * @returns Array of violation strings (empty when clean)
+ */
+export function findApiAuthViolations(
+  sourceFile: ts.SourceFile,
+): string[] {
+  const violations: string[] = [];
+
+  const apiRequestMethods = new Set([
+    "requestJira",
+    "requestConfluence",
+    "requestBitbucket",
+  ]);
+
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && isApiRequestCall(node)) {
+      if (ts.isPropertyAccessExpression(node.expression)) {
+        const methodName = node.expression.name.text;
+        if (apiRequestMethods.has(methodName)) {
+          const violation = checkApiAuthChain(sourceFile, node);
+          if (violation) violations.push(violation);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return violations;
+}
+
+/**
  * Format a callsite for error messages with line number and context
  *
  * @param sourceFile - The parsed source file

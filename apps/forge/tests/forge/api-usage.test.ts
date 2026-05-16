@@ -17,6 +17,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  findApiAuthViolations,
   findImports,
   parseSourceFile,
   scanFileForApiViolations,
@@ -69,68 +70,34 @@ describe("API Usage Patterns", () => {
   });
 
   it("should use api.asUser() or api.asApp() for backend API requests", () => {
-    const files = getAllTypeScriptFiles(srcPath);
+    const files = getAllTypeScriptFiles(srcPath).filter(
+      (file) => !file.includes(`${path.sep}frontend${path.sep}`),
+    );
+
+    const violations: string[] = [];
 
     for (const file of files) {
-      // Skip frontend files - they use @forge/bridge with requestJira directly
-      if (file.includes("/frontend/")) {
-        continue;
-      }
-
       const content = fs.readFileSync(file, "utf-8");
 
-      // Skip files that don't use @forge/api
-      if (!content.includes("@forge/api")) {
-        continue;
-      }
+      // Skip auto-generated files
+      if (content.includes("This file was auto-generated")) continue;
 
-      // Check that API requests use .asUser() or .asApp()
-      // This is whitespace-insensitive by normalizing whitespace before checking
+      // Skip files that don't use @forge/api (no requestJira/etc. calls)
+      if (!content.includes("@forge/api")) continue;
 
-      // Get all method calls (both valid and invalid)
-      const allMethodCalls = Array.from(
-        content.matchAll(/request(Jira|Confluence)/g),
+      const sourceFile = parseSourceFile(file);
+      const fileViolations = findApiAuthViolations(sourceFile).map(
+        (v) => `${path.relative(srcPath, file)}: ${v}`,
       );
-
-      for (const methodMatch of allMethodCalls) {
-        const methodName = `request${methodMatch[1]}`;
-        const matchIndex = methodMatch.index || 0;
-
-        // Get the line number for error reporting
-        const lineNum = content.substring(0, matchIndex).split("\n").length;
-        const lineContent = content.split("\n")[lineNum - 1];
-
-        // Skip comments and imports
-        if (
-          lineContent.trim().startsWith("//") ||
-          lineContent.includes("import")
-        ) {
-          continue;
-        }
-
-        // Check if this method call is preceded by .asUser() or .asApp()
-        // Use normalized whitespace for the check (remove all whitespace)
-        const contextStart = Math.max(0, matchIndex - 200);
-        const context = content.substring(
-          contextStart,
-          matchIndex + methodName.length,
-        );
-        const normalizedContext = context.replace(/\s+/g, "");
-
-        const hasValidAuth =
-          normalizedContext.includes(`.asUser().${methodName}`) ||
-          normalizedContext.includes(`.asApp().${methodName}`) ||
-          // authClient is a pre-authenticated client (api.asUser(accountId) or
-          // api.asApp()) passed as a parameter — the auth origin is enforced at
-          // the call site that constructs authClient.
-          normalizedContext.includes(`authClient.${methodName}`);
-
-        expect(
-          hasValidAuth,
-          `File ${file}, line ${lineNum}: Use api.asUser().${methodName}() or api.asApp().${methodName}() - whitespace between method calls is allowed.\nLine: ${lineContent.trim()}`,
-        ).toBe(true);
-      }
+      violations.push(...fileViolations);
     }
+
+    expect(
+      violations,
+      violations.length
+        ? `Found API request calls without .asUser() or .asApp() auth chain:\n${violations.join("\n\n")}`
+        : undefined,
+    ).toEqual([]);
   });
 
   it("should use relative paths, not absolute URLs", () => {

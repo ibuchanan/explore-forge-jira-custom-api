@@ -6,8 +6,9 @@
  * validation, error aggregation, translation, and Jira proxying.
  */
 
-import { err, ok } from "forge-ahead";
+import { err } from "forge-ahead";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { makeRequest, makeResolution } from "./test-helpers";
 
 // ---------------------------------------------------------------------------
 // Module mocks — must be declared before imports of the module under test
@@ -60,23 +61,17 @@ const mockWriteOtelProperty = vi.mocked(writeOtelProperty);
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeRequest(body: unknown): { body: string } {
-  return { body: JSON.stringify(body) };
-}
+// makeRequest and makeResolution are imported from ./test-helpers
 
-function makeResolution(
-  entries: [string, string][] = [
+// handler tests mock resolveFieldNames at a high level; passing an empty
+// fieldMetaById skips coercion so numeric values pass through unchanged.
+const SUCCESS_RESOLUTION = makeResolution(
+  [
     ["Summary", "summary"],
     ["Story Points", "customfield_10016"],
   ],
-) {
-  return ok({
-    resolved: new Map(entries),
-    fieldMetaById: new Map<string, unknown>(),
-  });
-}
-
-const SUCCESS_RESOLUTION = makeResolution();
+  new Map(),
+);
 
 const CREATED_ISSUE = {
   id: "10001",
