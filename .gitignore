@@ -35,6 +35,9 @@ yarn-error.log*
 !**/integration/.env.hurl.example
 **/integration/.oauth.hurl
 **/integration/access_token_response.json
+__pycache__/
+*.py[cod]
+*$py.class
 .turbo/
 dist/
 coverage/

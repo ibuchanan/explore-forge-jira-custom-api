@@ -15,23 +15,18 @@ When requesting Forge App REST API custom scopes through Atlassian OAuth 2.0
 sns=<app-id>.<env-id>
 ```
 
-Without `sns`, Atlassian may silently drop Forge custom scopes before rendering
-the consent page. The failure can look like this:
+Atlassian's Developer Console URL generator includes this parameter for Forge App
+REST API custom scopes, but generic OAuth docs do not mention it. Without `sns`,
+Atlassian may silently drop Forge custom scopes before rendering the consent
+page. The failure can look like this:
 
 ```text
 Something went wrong
 This app has not requested any supported Atlassian scopes.
 ```
 
-The generated consent URL may reveal the problem: the embedded authorize request
-contains only `scope=offline_access`, even though the bootstrap script requested
-custom scopes such as `write:workitem:custom`.
-
-The Developer Console URL generator includes `sns`, but the parameter is not
-obvious from generic OAuth 2.0 documentation.
-
-**Workaround:** `integration/bootstrap-oauth.py` derives `sns` from `base_url`.
-For a base URL ending in:
+**Workaround:** `integration/bootstrap-oauth.py` builds the authorization URL
+directly and derives `sns` from `base_url`. For a base URL ending in:
 
 ```text
 /apps/<app-id>_<env-id>
@@ -47,99 +42,6 @@ If derivation fails, set an explicit override in `integration/.env.hurl`:
 
 ```properties
 oauth_sns=<app-id>.<env-id>
-```
-
-## Atlassian's `sns` parameter is required for custom scopes
-
-**Status:** observed with this integration.
-
-Atlassian's Developer Console URL generator includes an `sns` parameter for
-Forge App REST API custom scopes. Generic OAuth docs do not mention it, but the
-consent page may omit custom scopes without it.
-
-`integration/bootstrap-oauth.py` builds the authorization URL directly so it can
-include `sns=<app-id>.<env-id>` exactly as shown by the Developer Console.
-
-## `oauth_scopes` is space-separated in `.env.hurl`
-
-**Status:** repository convention.
-
-Atlassian's Developer Console generated authorization URL uses OAuth's normal
-space-separated scope string. Keep `oauth_scopes` space-separated.
-
-```properties
-oauth_scopes=write:workitem:custom write:workitem-as-user:custom
-```
-
-## Hurl variable files are properties files, not token JSON
-
-**Status:** documented by Hurl CLI help and examples.
-
-Hurl's `--variables-file` option reads properties-style files:
-
-```properties
-name=value
-```
-
-It does not read `access_token_response.json` directly as Hurl variables. That
-means Hurl cannot directly use the raw OAuth token response JSON as a variables
-file.
-
-**Workaround:** the bootstrap script writes a generated Hurl variables file:
-
-```text
-integration/.oauth.hurl
-```
-
-with:
-
-```properties
-oauth_access_token=<latest-access-token>
-```
-
-`npm run test:api` loads both files:
-
-```bash
-hurl --variables-file integration/.env.hurl \
-  --variables-file integration/.oauth.hurl \
-  integration/workitem.hurl
-```
-
-## Hurl top-level `[Options]` is not accepted
-
-**Status:** observed with Hurl 8.0.1.
-
-A top-level `[Options]` section before the first request is parsed as an invalid
-HTTP method. Request options must be attached to a request entry.
-
-**Workaround:** define generated variables on the first request:
-
-```hurl
-POST https://auth.atlassian.com/oauth/token
-Content-Type: application/json
-[Options]
-variable: uuid={{newUuid}}
-{
-  "grant_type": "refresh_token"
-}
-```
-
-Variables defined this way are available to following requests, so the Hurl suite
-uses one generated UUID consistently for summary and dedup JQL values.
-
-## Hurl CLI `--variable uuid={{newUuid}}` is literal
-
-**Status:** observed with Hurl 8.0.1.
-
-Passing a template function through the CLI variable flag did not evaluate it as
-a Hurl template function; it was passed literally as `{{newUuid}}`.
-
-**Workaround:** define `uuid` inside `integration/workitem.hurl` using a request
-`[Options]` section:
-
-```hurl
-[Options]
-variable: uuid={{newUuid}}
 ```
 
 ## App API custom-scope tokens do not have a refresh flow
@@ -158,19 +60,6 @@ OAuth files and start a fresh browser flow:
 rm -f integration/access_token_response.json integration/.oauth.hurl
 npm run test:api:bootstrap
 ```
-
-## The bootstrap script requires a fixed callback URL
-
-**Status:** repository convention.
-
-The OAuth app in the Atlassian Developer Console must include this callback URL:
-
-```text
-http://localhost:9876/callback
-```
-
-If the callback differs, the browser authorization flow fails before token
-bootstrap can complete.
 
 ## Custom scopes must exist for the Forge environment
 
@@ -244,6 +133,59 @@ rm -f integration/access_token_response.json integration/.oauth.hurl
 npm run test:api:bootstrap
 ```
 
+## App REST API gateway rejects valid namespaced custom scopes
+
+**Status:** observed after the OAuth flow successfully returned an access token.
+
+The OAuth access token can include the expected namespaced custom scopes, for
+example:
+
+```text
+<app-id>.<env-id>:write:workitem:custom
+<app-id>.<env-id>:write:workitem-as-user:custom
+```
+
+The Forge manifest declares the corresponding un-namespaced `apiRoute` scopes:
+
+```text
+/workitem                 write:workitem:custom
+/workitem/asuser          write:workitem-as-user:custom
+/workitem/upsert          write:workitem:custom
+/workitem/upsert/asuser   write:workitem-as-user:custom
+```
+
+Despite the apparent match, the App REST API gateway can reject requests before
+the Forge handler runs:
+
+```text
+HTTP 401
+x-failure-category: FAILURE_CLIENT_SCOPE_CHECK
+{"code":401,"message":"Unauthorized; scope does not match"}
+```
+
+This was observed with both documented base URL forms:
+
+```text
+https://api.atlassian.com/svc/jira/<cloud-id>/apps/<app-id>_<env-id>/...
+https://<site>.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>/...
+```
+
+A redeploy and install upgrade did not resolve it:
+
+```bash
+npm run forge:deploy
+npm run forge:upgrade
+```
+
+**Likely causes:** platform preview behavior, stale remote custom-scope state,
+or a Developer Console/OAuth client association issue despite the correct `sns`
+value appearing in the consent context and access token scope names.
+
+**Escalation evidence:** include the `atl-traceid`, `atl-request-id`,
+`x-failure-category`, token `scope` claim without the token itself, the
+`apiRoute` scope declarations, and the App REST API base URL app/environment
+segment. Do not include the bearer token or OAuth client secret.
+
 ## App API tokens do not use accessible resources
 
 **Status:** observed with the App API custom-scope flow.
@@ -257,25 +199,3 @@ environment through `sns`, and the integration already has its App REST API
 Calling `/oauth/token/accessible-resources` with this token can return no usable
 cloud ID. The bootstrap script therefore does not call it or generate
 `integration/accessible_resources.json`.
-
-## Generated OAuth files are local state
-
-**Status:** repository convention.
-
-These files contain local secrets or token-derived data and must not be
-committed:
-
-```text
-integration/.env.hurl
-integration/.oauth.hurl
-integration/access_token_response.json
-```
-
-They are ignored by `.gitignore`. If integration behavior becomes confusing,
-regenerate them from scratch:
-
-```bash
-rm -f integration/access_token_response.json \
-  integration/.oauth.hurl
-npm run test:api:bootstrap
-```
