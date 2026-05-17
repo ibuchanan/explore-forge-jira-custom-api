@@ -1,0 +1,48 @@
+app:
+  runtime:
+    architecture: arm64
+    memoryMB: 256
+    name: nodejs24.x
+  id: ari:cloud:ecosystem::app/ed4c162d-2d8a-4b93-a846-ed29952040eb
+modules:
+  jira:adminPage:
+    - key: admin-page
+      title: API Base URL
+      render: native
+      resource: admin-page-resource
+  jira:entityProperty:
+    - key: otel-issue-property
+      entityType: issue
+      propertyKey: otel
+      values:
+        - alias: otelTraceId
+          path: traceId
+          type: string
+        - alias: otelSpanId
+          path: spanId
+          type: string
+  webtrigger:
+    - key: workitem-post
+      function: workitem-handler
+    - key: workitem-as-user-post
+      function: wi-asuser-handler
+    - key: workitem-upsert-post
+      function: workitem-upsert-handler
+    - key: workitem-upsert-as-user-post
+      function: wi-upsert-asuser-fn
+  function:
+    - key: workitem-handler
+      handler: index.handleWorkitem
+    - key: wi-asuser-handler
+      handler: index.handleWorkitemAsUser
+    - key: workitem-upsert-handler
+      handler: index.handleWorkitemUpsert
+    - key: wi-upsert-asuser-fn
+      handler: index.handleWorkitemUpsertAsUser
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+resources:
+  - key: admin-page-resource
+    path: src/frontend/index.tsx

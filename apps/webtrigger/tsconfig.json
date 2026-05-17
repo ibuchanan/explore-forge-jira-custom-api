@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.json",
+  "include": ["src"],
+  "exclude": [
+    "src/jira-platform-2/types.ts",
+    "src/jira-platform-3/types.ts",
+    "src/jira-servicedesk/types.ts",
+    "src/jira-software/types.ts"
+  ],
+  "compilerOptions": {
+    /* Transpiling for Forge bundler (required) */
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": true,
+    "moduleResolution": "node",
+    "module": "ES2022",
+
+    /* Forge Runtime & UI */
+    "jsx": "react"
+  }
+}

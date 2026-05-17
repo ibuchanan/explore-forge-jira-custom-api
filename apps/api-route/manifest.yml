@@ -1,0 +1,72 @@
+app:
+  id: ari:cloud:ecosystem::app/bb398628-d837-4378-9fe5-9b033fb24aac
+  runtime:
+    architecture: arm64
+    memoryMB: 256
+    name: nodejs24.x
+modules:
+  apiRoute:
+    - key: workitem-post
+      accept:
+        - application/json
+      function: workitem-handler
+      operation: POST
+      path: /workitem
+      scopes:
+        - write:workitem:custom
+    - key: workitem-as-user-post
+      accept:
+        - application/json
+      function: wi-asuser-handler
+      operation: POST
+      path: /workitem/asuser
+      scopes:
+        - write:workitem-as-user:custom
+    - key: workitem-upsert-post
+      accept:
+        - application/json
+      function: workitem-upsert-handler
+      operation: POST
+      path: /workitem/upsert
+      scopes:
+        - write:workitem:custom
+    - key: workitem-upsert-as-user-post
+      accept:
+        - application/json
+      function: wi-upsert-asuser-fn
+      operation: POST
+      path: /workitem/upsert/asuser
+      scopes:
+        - write:workitem-as-user:custom
+  jira:adminPage:
+    - key: admin-page
+      title: API Base URL
+      render: native
+      resource: admin-page-resource
+  jira:entityProperty:
+    - key: otel-issue-property
+      entityType: issue
+      propertyKey: otel
+      values:
+        - alias: otelTraceId
+          path: traceId
+          type: string
+        - alias: otelSpanId
+          path: spanId
+          type: string
+  function:
+    - key: workitem-handler
+      handler: index.handleWorkitem
+    - key: wi-asuser-handler
+      handler: index.handleWorkitemAsUser
+    - key: workitem-upsert-handler
+      handler: index.handleWorkitemUpsert
+    - key: wi-upsert-asuser-fn
+      handler: index.handleWorkitemUpsertAsUser
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work
+resources:
+  - key: admin-page-resource
+    path: src/frontend/index.tsx

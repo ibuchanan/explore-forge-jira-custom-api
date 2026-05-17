@@ -1,5 +1,5 @@
 {
-  "name": "forge-app",
+  "name": "jira-custom-api-via-api-route",
   "version": "0.0.0",
   "private": true,
   "type": "module",
