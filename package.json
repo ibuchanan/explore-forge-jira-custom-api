@@ -29,7 +29,8 @@
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "test": "turbo run test",
-    "test:api": "hurl --version >/dev/null || (echo 'Error: Hurl is not installed. Visit https://hurl.dev to install.' && exit 1) && hurl --test --variables-file integration/.env.hurl integration/workitem.hurl",
+    "test:api:bootstrap": "uv run integration/bootstrap-oauth.py",
+    "test:api": "hurl --version >/dev/null || (echo 'Error: Hurl is not installed. Visit https://hurl.dev to install.' && exit 1); test -f integration/.oauth.hurl || (echo 'Error: integration/.oauth.hurl is missing. Run npm run test:api:bootstrap first.' && exit 1); hurl --test --variables-file integration/.env.hurl --variables-file integration/.oauth.hurl integration/workitem.hurl",
     "test:coverage": "turbo run test:coverage",
     "typecheck": "turbo run typecheck"
   },

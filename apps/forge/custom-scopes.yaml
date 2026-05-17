@@ -1,8 +1,5 @@
 version: 1
 scopes:
-  read:workitem:custom:
-    displayName: Read workitems
-    description: Allows reading Jira workitem data through the app REST API
   write:workitem:custom:
     displayName: Write workitems
     description: Allows creating and updating Jira workitems through the app REST API

@@ -119,17 +119,19 @@ npm run test           # all packages
 npm run test:coverage  # with coverage
 ```
 
-Integration tests use [Hurl](https://hurl.dev/):
+Integration tests use [Hurl](https://hurl.dev/) and a small OAuth bootstrap
+helper:
 
 ```bash
 # From the monorepo root — requires a deployed app and integration/.env.hurl
+cp integration/.env.hurl.example integration/.env.hurl
+# Edit integration/.env.hurl with your OAuth client, app URL, project, and user.
+npm run test:api:bootstrap
 npm run test:api
 ```
 
-Copy `integration/.env.hurl.example` to `integration/.env.hurl` and fill in
-your app REST API base URL, OAuth client credentials, and OAuth refresh token
-before running integration tests. The Hurl suite exchanges the refresh token for
-a fresh bearer token at the start of each run.
+See [`integration/README.md`](integration/README.md) for OAuth app setup, CLI
+requirements, generated token files, and troubleshooting.
 
 ## Project layout
 
@@ -162,12 +164,15 @@ packages/forge-ahead/
   scopes. That keeps the sample straightforward, but a production app should review
   the exact Jira endpoints it calls and prefer narrower granular scopes when they
   cover the same operations.
-- The handlers log incoming `apiRoute` requests for sample/debug visibility. In a
-  production app, treat verbose request logging on hot paths as an anti-pattern:
-  log compact metadata or correlation IDs instead of full payloads, and gate any
-  debug payload logging. Atlassian's [Forge cost guidance](https://developer.atlassian.com/platform/forge/optimise-forge-costs/)
-  identifies log writes as a cost driver and recommends avoiding verbose logging in
-  hot paths.
+- The handlers log incoming `apiRoute` requests for sample/debug visibility.
+  In production apps, treat verbose request logging on hot paths as an
+  anti-pattern: log compact metadata or correlation IDs instead of full
+  payloads, and gate any debug payload logging. Atlassian's
+  [Forge cost guidance][forge-cost-guidance] identifies log writes as a cost
+  driver and recommends avoiding verbose logging in hot paths.
+
+<!-- markdownlint-disable-next-line MD013 -->
+[forge-cost-guidance]: https://developer.atlassian.com/platform/forge/optimise-forge-costs/
 
 ## Architectural decisions
 
