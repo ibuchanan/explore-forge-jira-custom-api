@@ -142,14 +142,14 @@ a Hurl template function; it was passed literally as `{{newUuid}}`.
 variable: uuid={{newUuid}}
 ```
 
-## App API custom-scope tokens may be access-token only
+## App API custom-scope tokens do not have a refresh flow
 
 **Status:** observed in Developer Console behavior.
 
 Forge App API custom scopes appear mutually exclusive with standard Atlassian
 scopes such as `offline_access` in the Developer Console. The integration flow
-therefore hands Hurl a generated access token directly instead of requiring a
-refresh token.
+therefore hands Hurl a generated access token directly. There is no normal
+Atlassian product 3LO refresh-token workflow for this custom App API grant.
 
 **Workaround:** when the generated access token expires, delete the generated
 OAuth files and start a fresh browser flow:

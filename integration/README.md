@@ -5,8 +5,8 @@ work item endpoints.
 
 The integration workflow is intentionally split into two parts:
 
-1. `npm run test:api:bootstrap` obtains or refreshes Atlassian OAuth 2.0
-   (3LO) tokens.
+1. `npm run test:api:bootstrap` obtains a short-lived Atlassian OAuth 2.0
+   (3LO) access token for the Forge App REST API custom scopes.
 2. `npm run test:api` runs `integration/workitem.hurl` with stable environment
    config plus generated OAuth token variables.
 
@@ -112,8 +112,10 @@ integration/.oauth.hurl
 These files are git-ignored. `integration/.oauth.hurl` is the Hurl-compatible
 variables file that contains the generated `oauth_access_token`.
 
-Later bootstrap runs reuse a cached refresh token if Atlassian returns one;
-otherwise, rerun the browser flow when the access token expires.
+This custom-scope flow does not provide the normal Atlassian product 3LO
+refresh-token workflow: App API custom scopes are mutually exclusive with
+`offline_access` in the Developer Console. Rerun the browser bootstrap flow when
+the generated access token expires.
 
 ## Run the tests
 
