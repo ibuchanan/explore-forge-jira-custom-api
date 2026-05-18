@@ -4,9 +4,11 @@ A Forge app that exposes HTTP webhook endpoints for creating Jira issues with
 human-readable field names. Callers send `"Summary"` and `"Story Points"`;
 the app translates those to Jira field IDs and creates the issue.
 
-Authentication is handled by the app itself using **Bearer tokens** stored as
-Forge environment variables. The Forge platform does not authenticate webtrigger
-URLs — the app verifies every request before processing it.
+Authentication is handled by the app itself using **short-lived JWT Bearer
+tokens** (HS256, signed with a shared secret). The Forge platform does not
+authenticate webtrigger URLs — the app verifies every request before
+processing it. Callers generate a new JWT (≤15 min expiry) per request and
+sign it with the shared secret stored as a Forge environment variable.
 
 ## Endpoints
 
@@ -107,11 +109,34 @@ Share the appropriate URL and token with each caller.
 
 ## Caller setup
 
-Callers include the Bearer token in every request:
+Callers generate a short-lived **JWT** (HS256, ≤15 minutes) signed with the
+shared secret and send it as the Bearer token. The JWT must include `exp`,
+`iat`, `iss`, and `aud` claims.
+
+### Minting a JWT (Node.js / `jose`)
+
+```typescript
+import { SignJWT } from "jose";
+import { createSecretKey } from "node:crypto";
+
+const secret = createSecretKey(process.env.WEBTRIGGER_TOKEN!, "utf-8");
+const token = await new SignJWT({})
+  .setProtectedHeader({ alg: "HS256" })
+  .setIssuedAt()
+  .setExpirationTime("15m")
+  .setIssuer("my-ci-system")           // identifies your caller in logs
+  .setAudience("write:workitem:custom") // must match the target endpoint
+  .sign(secret);
+// Authorization: Bearer <token>
+```
+
+For as-user endpoints, use `"write:workitem-as-user:custom"` as the audience.
+
+### Making a request
 
 ```bash
 curl -X POST "<webtrigger-url>" \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <jwt>" \
   -H "Content-Type: application/json" \
   -d '{
     "project": "HSP",
@@ -120,22 +145,43 @@ curl -X POST "<webtrigger-url>" \
   }'
 ```
 
+### Required JWT claims
+
+| Claim | Value                                                          |
+|-------|----------------------------------------------------------------|
+| `alg` | `HS256` (header)                                               |
+| `iss` | Any non-empty string identifying your caller                   |
+| `aud` | `"write:workitem:custom"` or `"write:workitem-as-user:custom"` |
+| `iat` | Issued-at (Unix timestamp)                                     |
+| `exp` | Expiry — must be ≤ 15 minutes from `iat`                       |
+
+The app applies a **30-second clock skew leeway** to `exp`.
+
 ### Auth error responses
 
-| Situation                                                       | Status | Cause                                         |
-|-----------------------------------------------------------------|--------|-----------------------------------------------|
-| Missing or malformed `Authorization` header                     | 401    | Caller error                                  |
-| Wrong token                                                     | 401    | Caller error                                  |
-| `WEBTRIGGER_TOKEN` / `WEBTRIGGER_AS_USER_TOKEN` not configured  | 500    | Operator error — rerun `forge variables set`  |
+| Situation                                                        | Status | Cause                                         |
+|------------------------------------------------------------------|--------|-----------------------------------------------|
+| Missing or malformed `Authorization: Bearer` header              | 401    | Caller error                                  |
+| Invalid JWT (bad signature, wrong `aud`, expired, missing claim) | 401    | Caller error                                  |
+| `WEBTRIGGER_TOKEN` / `WEBTRIGGER_AS_USER_TOKEN` not configured   | 500    | Operator error — rerun `forge variables set`  |
 
 All error responses use RFC 9457 `application/json` `ProblemDetails` bodies.
-A 500 means the Forge environment variable was not set — redeploy after
-setting it.
 
-### Rotating tokens
+### Known limitations
 
-To rotate a token, set the new value with `forge variables set` and redeploy.
-There is no grace period — old tokens stop working immediately after redeployment.
+**No `jti` replay prevention.** A JWT can be replayed within its 15-minute
+expiry window. Adding a `jti` nonce with a server-side seen-cache (Forge KVS)
+would eliminate this. The short expiry is the primary replay defence for now.
+
+**No `iss` allowlist.** The `iss` claim is required and logged on every
+successful request (`webtrigger auth success: iss=<value>`) but is not
+validated against a known list. A `WEBTRIGGER_ALLOWED_ISSUERS` variable
+would give stronger isolation in multi-caller deployments.
+
+### Rotating secrets
+
+To rotate a secret, set the new value and redeploy. There is no grace period
+— old tokens signed with the previous secret stop working immediately.
 
 ```bash
 forge variables set --environment development WEBTRIGGER_TOKEN <new-value>

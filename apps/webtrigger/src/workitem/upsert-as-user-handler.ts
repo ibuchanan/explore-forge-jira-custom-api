@@ -40,7 +40,7 @@ export async function handleWorkitemUpsertAsUser(
   req: ApiRouteRequest,
 ): Promise<ApiRouteResponse> {
   // 0. Verify Bearer token before any other processing
-  const auth = verifyBearerToken(req.headers, "WEBTRIGGER_AS_USER_TOKEN");
+  const auth = await verifyBearerToken(req.headers, "WEBTRIGGER_AS_USER_TOKEN");
   if (!auth.ok) return auth.response;
 
   logApiRouteRequest(req, "workitem/upsert/asuser");

@@ -15,21 +15,24 @@
 
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import {
-  makeRequest as makeRequestBase,
-  makeRawRequest as makeRawRequestBase,
+  makeAsUserRequest,
+  makeRawAsUserRequest,
   makeResolution,
   TEST_WEBTRIGGER_AS_USER_TOKEN,
 } from "./test-helpers";
 
-/** makeRequest pre-filled with the as-user token. */
-const makeRequest = (body: unknown) =>
-  makeRequestBase(body, TEST_WEBTRIGGER_AS_USER_TOKEN);
-
-/** makeRawRequest pre-filled with the as-user token. */
-const makeRawRequest = (rawBody: string) =>
-  makeRawRequestBase(rawBody, TEST_WEBTRIGGER_AS_USER_TOKEN);
-import { handleWorkitemAsUser } from "../../src/workitem/insert-as-user-handler";
 import { resolveFieldNames } from "../../src/workitem/field-resolver";
+import {
+  createIssue,
+  JiraApiError,
+  writeOtelProperty,
+} from "../../src/workitem/jira-client";
+import { handleWorkitemAsUser } from "../../src/workitem/insert-as-user-handler";
+import api from "@forge/api";
+
+// Use the dedicated as-user helpers (pre-filled with AUDIENCE_AS_USER)
+const makeRequest = makeAsUserRequest;
+const makeRawRequest = makeRawAsUserRequest;
 
 vi.mock("../../src/workitem/field-resolver", () => ({
   resolveFieldNames: vi.fn(),
@@ -81,12 +84,6 @@ vi.mock("@forge/api", () => ({
     strings.reduce((acc, s, i) => acc + s + (values[i] ?? ""), ""),
 }));
 
-import {
-  createIssue,
-  JiraApiError,
-  writeOtelProperty,
-} from "../../src/workitem/jira-client";
-import api from "@forge/api";
 
 const mockResolveFieldNames = vi.mocked(resolveFieldNames);
 const mockCreateIssue = vi.mocked(createIssue);
@@ -119,7 +116,7 @@ afterEach(() => {
 describe("handleWorkitemAsUser — raiseOnBehalfOf validation", () => {
   it("returns 400 when raiseOnBehalfOf is absent", async () => {
     const { raiseOnBehalfOf: _rob, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemAsUser(makeRequest(bodyWithout));
+    const res = await handleWorkitemAsUser(await makeRequest(bodyWithout));
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -128,7 +125,7 @@ describe("handleWorkitemAsUser — raiseOnBehalfOf validation", () => {
 
   it("returns 400 when raiseOnBehalfOf is an empty string", async () => {
     const res = await handleWorkitemAsUser(
-      makeRequest({ ...VALID_BODY, raiseOnBehalfOf: "" }),
+      await makeRequest({ ...VALID_BODY, raiseOnBehalfOf: "" }),
     );
 
     expect(res.statusCode).toBe(400);
@@ -137,19 +134,19 @@ describe("handleWorkitemAsUser — raiseOnBehalfOf validation", () => {
   });
 
   it("returns 400 for invalid JSON", async () => {
-    const res = await handleWorkitemAsUser(makeRawRequest("not json"));
+    const res = await handleWorkitemAsUser(await makeRawRequest("not json"));
     expect(res.statusCode).toBe(400);
   });
 
   it("returns 400 when project is missing", async () => {
     const { project: _p, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemAsUser(makeRequest(bodyWithout));
+    const res = await handleWorkitemAsUser(await makeRequest(bodyWithout));
     expect(res.statusCode).toBe(400);
   });
 
   it("returns 400 when fields is missing", async () => {
     const { fields: _f, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemAsUser(makeRequest(bodyWithout));
+    const res = await handleWorkitemAsUser(await makeRequest(bodyWithout));
     expect(res.statusCode).toBe(400);
   });
 });
@@ -163,7 +160,7 @@ describe("handleWorkitemAsUser — auth client forwarding", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     expect(vi.mocked(api.asUser)).toHaveBeenCalledWith("user-account-123");
     expect(mockCreateIssue).toHaveBeenCalledOnce();
@@ -176,7 +173,7 @@ describe("handleWorkitemAsUser — auth client forwarding", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     const [jiraBody] = mockCreateIssue.mock.calls[0];
     const allFieldKeys = Object.keys(jiraBody.fields);
@@ -193,7 +190,7 @@ describe("handleWorkitemAsUser — successful creation", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    const res = await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    const res = await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     expect(res.statusCode).toBe(201);
     const body = JSON.parse(res.body);
@@ -205,7 +202,7 @@ describe("handleWorkitemAsUser — successful creation", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     const [jiraBody] = mockCreateIssue.mock.calls[0];
     expect(jiraBody.fields.project).toEqual({ key: "HSP" });
@@ -222,7 +219,7 @@ describe("handleWorkitemAsUser — successful creation", () => {
     };
 
     const res = await handleWorkitemAsUser(
-      makeRequest({ ...VALID_BODY, otel }),
+      await makeRequest({ ...VALID_BODY, otel }),
     );
 
     expect(res.statusCode).toBe(201);
@@ -234,7 +231,7 @@ describe("handleWorkitemAsUser — successful creation", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     expect(mockWriteOtelProperty).not.toHaveBeenCalled();
   });
@@ -253,7 +250,7 @@ describe("handleWorkitemAsUser — Jira API error forwarding", () => {
     );
     mockCreateIssue.mockRejectedValue(jiraError);
 
-    const res = await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    const res = await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -264,7 +261,7 @@ describe("handleWorkitemAsUser — Jira API error forwarding", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockCreateIssue.mockRejectedValue(new Error("Network timeout"));
 
-    const res = await handleWorkitemAsUser(makeRequest(VALID_BODY));
+    const res = await handleWorkitemAsUser(await makeRequest(VALID_BODY));
 
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);

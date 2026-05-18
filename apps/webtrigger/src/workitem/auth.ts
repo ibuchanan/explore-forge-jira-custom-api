@@ -1,29 +1,45 @@
 /**
- * Bearer token authentication for webtrigger handlers.
+ * JWT Bearer token authentication for webtrigger handlers.
  *
  * Webtrigger URLs are not authenticated by the Forge platform (by design).
- * This module implements app-level Bearer token verification to gate all
- * four webtrigger handlers.
+ * This module implements app-level JWT authentication to gate all four
+ * webtrigger handlers.
  *
- * Two tokens mirror the scope split from ADR-0006:
- *  - WEBTRIGGER_TOKEN          → plain insert and upsert handlers
- *  - WEBTRIGGER_AS_USER_TOKEN  → as-user insert and upsert handlers
+ * Callers generate a short-lived JWT (≤15 min) signed with a shared secret
+ * (HS256) and send it as a Bearer token. The app verifies the signature,
+ * expiry, audience, and issuer claims before processing the request.
  *
- * Secrets are stored as Forge environment variables (forge variables set)
- * and read via process.env at runtime.
+ * Two secrets mirror the scope split from ADR-0006:
+ *  - WEBTRIGGER_TOKEN          → aud "write:workitem:custom"
+ *  - WEBTRIGGER_AS_USER_TOKEN  → aud "write:workitem-as-user:custom"
+ *
+ * Secrets are stored as Forge environment variables (forge variables set).
+ *
+ * Known limitations (see README and specs/bullet4-webtrigger-auth.md):
+ *  - No jti: JWTs can be replayed within the 15-min window
+ *  - No iss allowlist: any non-empty iss is accepted
  *
  * @see specs/bullet4-webtrigger-auth.md
  */
 
-import { timingSafeEqual } from "node:crypto";
+import { createSecretKey } from "node:crypto";
+import { jwtVerify } from "jose";
 import type { ApiRouteResponse } from "forge-ahead";
 import { StandardError } from "forge-ahead";
 
-/** HTTP headers as a multi-value map (header names are lowercase). */
-type Headers = Record<string, string[]>;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 /**
- * The two Forge environment variable names that hold webtrigger Bearer tokens.
+ * Clock skew leeway in seconds applied when checking the `exp` claim.
+ * Tokens expired by less than this amount are still accepted.
+ * Adjust if callers have unusual clock drift relative to Forge infrastructure.
+ */
+const CLOCK_SKEW_LEEWAY_SECONDS = 30;
+
+/**
+ * The two Forge environment variable names that hold webtrigger shared secrets.
  * A union literal type catches typos at compile time.
  */
 export type WebtriggerTokenVar =
@@ -31,8 +47,24 @@ export type WebtriggerTokenVar =
   | "WEBTRIGGER_AS_USER_TOKEN";
 
 /**
- * Build a webtrigger-compatible error response from ProblemDetails.
- * Uses the same shape as all other error responses in this app.
+ * Maps each env var to the `aud` claim value the JWT must carry.
+ * Mirrors the custom scope split from ADR-0006.
+ */
+const EXPECTED_AUDIENCE: Record<WebtriggerTokenVar, string> = {
+  WEBTRIGGER_TOKEN: "write:workitem:custom",
+  WEBTRIGGER_AS_USER_TOKEN: "write:workitem-as-user:custom",
+};
+
+/** HTTP headers as a multi-value map (header names are lowercase). */
+type Headers = Record<string, string[]>;
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a webtrigger-compatible error response using ProblemDetails shape.
+ * Consistent with all other error responses in this app.
  */
 function makeErrorResponse(
   statusCode: number,
@@ -43,9 +75,7 @@ function makeErrorResponse(
     statusCode,
     headers: {
       "Content-Type": ["application/json"],
-      ...(statusCode === 401
-        ? { "WWW-Authenticate": ["Bearer"] }
-        : {}),
+      ...(statusCode === 401 ? { "WWW-Authenticate": ["Bearer"] } : {}),
     },
     body: JSON.stringify({
       type: std.type,
@@ -57,9 +87,12 @@ function makeErrorResponse(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
- * Verifies the Bearer token in the Authorization header against the
- * expected secret stored in the given Forge environment variable.
+ * Verifies the JWT Bearer token in the Authorization header.
  *
  * Returns `{ ok: true }` on success.
  * Returns `{ ok: false; response: ApiRouteResponse }` on failure —
@@ -68,27 +101,35 @@ function makeErrorResponse(
  * **Failure cases:**
  * - Env var not set → 500 (operator misconfiguration)
  * - Authorization header absent or not `Bearer <token>` → 401
- * - Token present but does not match → 401
+ * - JWT invalid (bad signature, wrong aud, expired, missing claims) → 401
  *
- * **Timing safety:** Token comparison uses `crypto.timingSafeEqual`
- * to eliminate timing oracle attacks.
+ * **JWT requirements (HS256):**
+ * - `exp`: must be ≤ 15 min from `iat` (enforced by callers; not checked here)
+ * - `iat`: required for auditing
+ * - `iss`: required; logged on success for audit trail
+ * - `aud`: must match the scope for the target endpoint
  *
- * @param headers   - Inbound request headers (multi-value, lowercase names)
- * @param envVarName - Which Forge environment variable holds the expected token
+ * **Known limitations:**
+ * - No `jti` check: replay possible within the `exp` window
+ * - No `iss` allowlist: any non-empty `iss` is accepted
+ *   (TODO: add WEBTRIGGER_ALLOWED_ISSUERS env var for stricter isolation)
+ *
+ * @param headers    - Inbound request headers (multi-value, lowercase names)
+ * @param envVarName - Which Forge environment variable holds the shared secret
  *
  * @example
  * ```typescript
- * const auth = verifyBearerToken(req.headers, "WEBTRIGGER_TOKEN");
+ * const auth = await verifyBearerToken(req.headers, "WEBTRIGGER_TOKEN");
  * if (!auth.ok) return auth.response;
  * ```
  */
-export function verifyBearerToken(
+export async function verifyBearerToken(
   headers: Headers | undefined,
   envVarName: WebtriggerTokenVar,
-): { ok: true } | { ok: false; response: ApiRouteResponse } {
+): Promise<{ ok: true } | { ok: false; response: ApiRouteResponse }> {
   // 1. Check env var is configured (operator error if missing)
-  const expected = process.env[envVarName];
-  if (!expected) {
+  const secret = process.env[envVarName];
+  if (!secret) {
     console.warn(
       `webtrigger auth: ${envVarName} environment variable is not configured`,
     );
@@ -107,7 +148,7 @@ export function verifyBearerToken(
 
   if (!authHeader || !authHeader.startsWith(BEARER_PREFIX)) {
     console.warn(
-      `webtrigger auth failed: missing or malformed Authorization header`,
+      "webtrigger auth failed: missing or malformed Authorization header",
     );
     return {
       ok: false,
@@ -115,24 +156,30 @@ export function verifyBearerToken(
     };
   }
 
-  // 3. Extract token from "Bearer <token>"
-  const provided = authHeader.slice(BEARER_PREFIX.length);
+  // 3. Extract the JWT from "Bearer <jwt>"
+  const token = authHeader.slice(BEARER_PREFIX.length);
 
-  // 4. Timing-safe comparison — reject immediately if lengths differ
-  //    (length difference does not help an attacker)
-  const providedBuf = Buffer.from(provided);
-  const expectedBuf = Buffer.from(expected);
+  // 4. Verify: signature, exp (with leeway), aud, iss presence
+  const audience = EXPECTED_AUDIENCE[envVarName];
+  const secretKey = createSecretKey(secret, "utf-8");
 
-  if (
-    providedBuf.byteLength !== expectedBuf.byteLength ||
-    !timingSafeEqual(providedBuf, expectedBuf)
-  ) {
-    console.warn(`webtrigger auth failed: invalid token`);
+  try {
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ["HS256"],
+      audience,
+      clockTolerance: CLOCK_SKEW_LEEWAY_SECONDS,
+      requiredClaims: ["iss", "iat"],
+    });
+
+    // iss is required and validated present by requiredClaims above
+    console.info(`webtrigger auth success: iss=${String(payload.iss)}`);
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`webtrigger auth failed: ${message}`);
     return {
       ok: false,
       response: makeErrorResponse(401, "A valid Bearer token is required."),
     };
   }
-
-  return { ok: true };
 }

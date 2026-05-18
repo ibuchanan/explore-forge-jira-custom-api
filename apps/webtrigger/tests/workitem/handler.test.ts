@@ -9,6 +9,7 @@
 import { err } from "forge-ahead";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { makeRequest, makeRawRequest, makeResolution, TEST_WEBTRIGGER_TOKEN } from "./test-helpers";
+// makeRequest and makeRawRequest are now async — call sites use `await makeRequest(...)`
 
 // ---------------------------------------------------------------------------
 // Module mocks — must be declared before imports of the module under test
@@ -94,14 +95,14 @@ afterEach(() => {
 
 describe("handleWorkitem — input validation", () => {
   it("returns 400 for invalid JSON", async () => {
-    const res = await handleWorkitem(makeRawRequest("not json"));
+    const res = await handleWorkitem(await makeRawRequest("not json"));
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/valid JSON/i);
   });
 
   it("returns 400 for missing required fields", async () => {
-    const res = await handleWorkitem(makeRequest({ project: "HSP" }));
+    const res = await handleWorkitem(await makeRequest({ project: "HSP" }));
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/issueType/i);
@@ -109,14 +110,14 @@ describe("handleWorkitem — input validation", () => {
 
   it("returns 400 when fields is an array", async () => {
     const res = await handleWorkitem(
-      makeRequest({ project: "HSP", issueType: "Story", fields: [] }),
+      await makeRequest({ project: "HSP", issueType: "Story", fields: [] }),
     );
     expect(res.statusCode).toBe(400);
   });
 
   it("returns 400 when update is not an object", async () => {
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: {},
@@ -127,7 +128,7 @@ describe("handleWorkitem — input validation", () => {
   });
 
   it("returns 400 for null body", async () => {
-    const res = await handleWorkitem(makeRawRequest("null"));
+    const res = await handleWorkitem(await makeRawRequest("null"));
     expect(res.statusCode).toBe(400);
   });
 });
@@ -156,7 +157,7 @@ describe("handleWorkitem — field resolution errors", () => {
     );
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { "Unknown Field": 1 },
@@ -190,7 +191,7 @@ describe("handleWorkitem — field resolution errors", () => {
     );
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { "Priority Score": 3 },
@@ -231,7 +232,7 @@ describe("handleWorkitem — field resolution errors", () => {
     );
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { FieldA: 1, FieldB: 2, FieldC: 3 },
@@ -249,7 +250,7 @@ describe("handleWorkitem — field resolution errors", () => {
     mockResolveFieldNames.mockRejectedValue(new Error("Jira unreachable"));
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "Test" },
@@ -273,7 +274,7 @@ describe("handleWorkitem — successful creation", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "My Story", "Story Points": 5 },
@@ -291,7 +292,7 @@ describe("handleWorkitem — successful creation", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "My Story", "Story Points": 5 },
@@ -319,7 +320,7 @@ describe("handleWorkitem — successful creation", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "My Story" },
@@ -341,7 +342,7 @@ describe("handleWorkitem — successful creation", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "No Update" },
@@ -367,7 +368,7 @@ describe("handleWorkitem — Jira API error forwarding", () => {
     mockCreateIssue.mockRejectedValue(jiraError);
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "Test", "Story Points": 3 },
@@ -384,7 +385,7 @@ describe("handleWorkitem — Jira API error forwarding", () => {
     mockCreateIssue.mockRejectedValue(new Error("Network timeout"));
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "Test", "Story Points": 3 },
@@ -405,7 +406,7 @@ describe("handleWorkitem — Jira API error forwarding", () => {
 describe("handleWorkitem — OTel input validation", () => {
   it("returns 400 when traceId is not 32 lowercase hex chars", async () => {
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "Test" },
@@ -420,7 +421,7 @@ describe("handleWorkitem — OTel input validation", () => {
 
   it("returns 400 when spanId is not 16 lowercase hex chars", async () => {
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "Test" },
@@ -443,7 +444,7 @@ describe("handleWorkitem — OTel input validation", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "No OTel" },
@@ -475,7 +476,7 @@ describe("handleWorkitem — OTel property write", () => {
     };
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "OTel Story" },
@@ -499,7 +500,7 @@ describe("handleWorkitem — OTel property write", () => {
     );
 
     const res = await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "OTel Story" },
@@ -520,7 +521,7 @@ describe("handleWorkitem — OTel property write", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     await handleWorkitem(
-      makeRequest({
+      await makeRequest({
         project: "HSP",
         issueType: "Story",
         fields: { Summary: "No OTel" },
