@@ -32,8 +32,15 @@ yarn-error.log*
 .env.*
 !.env.example
 **/integration/.env.hurl
+**/integration/api-route/.env.hurl
+**/integration/webtrigger/.env.hurl
 !**/integration/.env.hurl.example
+!**/integration/api-route/.env.hurl.example
+!**/integration/webtrigger/.env.hurl.example
 **/integration/.oauth.hurl
+**/integration/api-route/.oauth.hurl
+**/integration/api-route/access_token_response.json
+**/integration/webtrigger/.jwt.hurl
 **/integration/access_token_response.json
 __pycache__/
 *.py[cod]

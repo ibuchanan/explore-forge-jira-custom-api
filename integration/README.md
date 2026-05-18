@@ -1,212 +1,228 @@
 # Integration tests
 
-This directory contains the outside-in Hurl test suite for the Forge App REST API
-work item endpoints.
+This directory contains the outside-in Hurl test suites for both Forge apps.
+Each app has its own subdirectory with its own environment file, bootstrap
+script, and Hurl suite — they can be deployed and tested independently.
 
-The integration workflow is intentionally split into two parts:
-
-1. `npm run test:api:bootstrap` obtains a short-lived Atlassian OAuth 2.0
-   (3LO) access token for the Forge App REST API custom scopes.
-2. `npm run test:api` runs `integration/workitem.hurl` with stable environment
-   config plus generated OAuth token variables.
+| App          | Directory                  | Auth mechanism     | Bootstrap                                |
+|--------------|----------------------------|--------------------|------------------------------------------|
+| `api-route`  | `integration/api-route/`   | OAuth 2.0 (3LO)    | `npm run test:api:bootstrap`             |
+| `webtrigger` | `integration/webtrigger/`  | JWT Bearer (HS256) | `npm run test:api:webtrigger:bootstrap`  |
 
 ## Requirements
 
-Install these CLIs before running the integration tests:
+- [Hurl](https://hurl.dev/) — runs the `.hurl` test files.
+- [uv](https://docs.astral.sh/uv/) — runs the Python bootstrap scripts.
+- A deployed and installed Forge app on a Jira Cloud site.
 
-- [Hurl](https://hurl.dev/) — runs `integration/workitem.hurl`.
-- [`uv`](https://docs.astral.sh/uv/) — runs the Python bootstrap script.
-- The Python script uses the standard library to read Hurl-style env files, open
-  the browser, capture the local OAuth callback, exchange tokens, and check
-  Atlassian accessible resources.
+---
 
-You also need:
+## api-route
 
-- a deployed Forge app installed on a Jira site,
-- App REST APIs enabled for the site,
-- an Atlassian OAuth 2.0 (3LO) app configured in the Developer Console, and
-- a Jira project where the token holder can create issues.
+The api-route app is authenticated via **OAuth 2.0 (3LO)**. The bootstrap
+script handles the browser-based authorization code flow and writes a
+short-lived access token to `integration/api-route/.oauth.hurl`.
 
-## Atlassian Developer Console setup
+### Atlassian Developer Console setup
 
-Create or update an OAuth 2.0 (3LO) app in the Atlassian Developer Console.
+Before running, create an OAuth 2.0 (3LO) app in the
+[Atlassian Developer Console](https://developer.atlassian.com/console/myapps/):
 
-Configure the callback URL required by the Python bootstrap script:
+1. Create a new **OAuth 2.0 (3LO)** app.
+2. Under **Permissions**, add:
+   - `write:workitem:custom`
+   - `write:workitem-as-user:custom`
+3. Under **Authorization**, add callback URL: `http://localhost:9876/callback`
 
-```text
-http://localhost:9876/callback
-```
+> **Note:** App API custom scopes are mutually exclusive with `offline_access`
+> in the Developer Console. Do not add `offline_access`.
 
-Grant the scopes required by this app's integration tests:
-
-```text
-write:workitem:custom
-write:workitem-as-user:custom
-```
-
-The two `write:*:custom` scopes authorize the Forge App REST API routes under
-test. App API custom scopes are mutually exclusive with `offline_access` in the
-Developer Console, so the bootstrap script hands Hurl an access token directly.
-`oauth_scopes` is space-separated in `.env.hurl`, matching the generated URL.
-
-## Configure local variables
-
-Copy the example variables file:
+### Configure api-route local variables
 
 ```bash
-cp integration/.env.hurl.example integration/.env.hurl
+cp integration/api-route/.env.hurl.example integration/api-route/.env.hurl
+# Edit integration/api-route/.env.hurl and fill in:
+#   oauth_client_id, oauth_client_secret
+#   base_url (from apps/api-route/manifest.yml app.id + forge environments list)
+#   project, issue_type, raise_on_behalf_of
 ```
 
-Edit `integration/.env.hurl`:
+See `integration/api-route/.env.hurl.example` for full documentation.
 
-```properties
-oauth_client_id=<your-oauth-client-id>
-oauth_client_secret=<your-oauth-client-secret>
-oauth_scopes=write:workitem:custom write:workitem-as-user:custom
-
-base_url=https://your-site.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>
-project=CS
-issue_type=Story
-raise_on_behalf_of=<jira-account-id>
-```
-
-The `base_url` format is:
-
-```text
-https://<site>.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>
-```
-
-Where:
-
-- `app-id` comes from `apps/forge/manifest.yml` `app.id`; remove the
-  `ari:cloud:ecosystem::app/` prefix.
-- `env-id` is the Forge environment UUID from `forge environments list`.
-
-The bootstrap script derives Atlassian's `sns` authorization parameter from this
-URL as `<app-id>.<env-id>`. If your URL shape differs, add an explicit override
-to `integration/.env.hurl`:
-
-```properties
-oauth_sns=<app-id>.<env-id>
-```
-
-## Bootstrap OAuth tokens
-
-Run:
+### Bootstrap OAuth tokens
 
 ```bash
 npm run test:api:bootstrap
 ```
 
-On the first run, the bootstrap script opens the browser authorization-code
-flow. Sign in, approve the requested scopes, and let the local callback listener
-capture the redirect on `localhost:9876`.
+This opens your browser for the OAuth authorization flow and writes
+`integration/api-route/.oauth.hurl` with the access token.
 
-The bootstrap script writes generated files:
+On subsequent runs (within the token lifetime), the script uses the cached
+refresh token from `integration/api-route/access_token_response.json`.
 
-```text
-integration/access_token_response.json
-integration/.oauth.hurl
-```
-
-These files are git-ignored. `integration/.oauth.hurl` is the Hurl-compatible
-variables file that contains the generated `oauth_access_token`.
-
-This custom-scope flow does not provide the normal Atlassian product 3LO
-refresh-token workflow: App API custom scopes are mutually exclusive with
-`offline_access` in the Developer Console. Rerun the browser bootstrap flow when
-the generated access token expires.
-
-## Run the tests
-
-After bootstrap succeeds, run:
+### Run the api-route tests
 
 ```bash
+npm run test:api:api-route
+# or (backwards-compatible alias):
 npm run test:api
 ```
 
-The npm script loads both variable files:
+### Deploy and install api-route
 
 ```bash
-hurl --test \
-  --variables-file integration/.env.hurl \
-  --variables-file integration/.oauth.hurl \
-  integration/workitem.hurl
+npm run forge:deploy    # deploy api-route app
+npm run forge:install   # install on site in apps/api-route/.env
+npm run forge:upgrade   # upgrade an existing installation
 ```
 
-`integration/.env.hurl` is the stable, human-maintained config file.
-`integration/.oauth.hurl` is generated by the bootstrap script.
+---
+
+## webtrigger
+
+The webtrigger app is authenticated via **JWT Bearer tokens** (HS256). The
+bootstrap script mints two short-lived JWTs (plain + as-user) from the shared
+secrets and writes them to `integration/webtrigger/.jwt.hurl`.
+
+JWTs expire in 15 minutes. Re-run the bootstrap before each test run.
+
+### Deploy the app and set secrets
+
+```bash
+npm run forge:deploy:webtrigger
+npm run forge:install:webtrigger
+```
+
+Then set the shared secrets as Forge environment variables:
+
+```bash
+forge variables set --environment development WEBTRIGGER_TOKEN <value>
+forge variables set --environment development WEBTRIGGER_AS_USER_TOKEN <value>
+```
+
+Generate strong secrets with:
+
+```bash
+openssl rand -hex 32   # run twice — once per token
+```
+
+### Find webtrigger URLs
+
+```bash
+forge webtrigger list
+```
+
+Note the URL for each trigger key — you will need them in `.env.hurl`.
+
+### Configure webtrigger local variables
+
+```bash
+cp integration/webtrigger/.env.hurl.example integration/webtrigger/.env.hurl
+# Edit integration/webtrigger/.env.hurl and fill in:
+#   webtrigger_token, webtrigger_as_user_token  (must match forge variables)
+#   webtrigger_url, webtrigger_as_user_url,
+#   webtrigger_upsert_url, webtrigger_upsert_as_user_url
+#   project, issue_type, raise_on_behalf_of
+```
+
+See `integration/webtrigger/.env.hurl.example` for full documentation.
+
+### Bootstrap JWT tokens
+
+```bash
+npm run test:api:webtrigger:bootstrap
+```
+
+This mints fresh JWTs from the secrets in `.env.hurl` and writes them to
+`integration/webtrigger/.jwt.hurl`. JWTs are valid for 15 minutes — re-run
+this before each test session.
+
+### Run the webtrigger tests
+
+```bash
+npm run test:api:webtrigger
+```
+
+### Deploy and install webtrigger
+
+```bash
+npm run forge:deploy:webtrigger    # deploy webtrigger app
+npm run forge:install:webtrigger   # install on site in apps/webtrigger/.env
+npm run forge:upgrade:webtrigger   # upgrade an existing installation
+```
+
+---
 
 ## Generated files
 
-Do not commit these files:
+The following files are git-ignored and must not be committed:
 
-| File | Purpose |
-| --- | --- |
-| `integration/.env.hurl` | Local stable config and secrets. |
-| `integration/.oauth.hurl` | Generated Hurl variables containing `oauth_access_token`. |
-| `integration/access_token_response.json` | Raw OAuth response cache from the bootstrap script. |
+| File                                               | Generated by                            |
+|----------------------------------------------------|-----------------------------------------|
+| `integration/api-route/.env.hurl`                  | You (copy from `.env.hurl.example`)     |
+| `integration/api-route/.oauth.hurl`                | `npm run test:api:bootstrap`            |
+| `integration/api-route/access_token_response.json` | `npm run test:api:bootstrap`            |
+| `integration/webtrigger/.env.hurl`                 | You (copy from `.env.hurl.example`)     |
+| `integration/webtrigger/.jwt.hurl`                 | `npm run test:api:webtrigger:bootstrap` |
+
+---
 
 ## Troubleshooting
 
-### `integration/.oauth.hurl is missing`
+### `integration/api-route/.oauth.hurl is missing`
 
-Run:
+Run `npm run test:api:bootstrap` first. The bootstrap script opens your browser
+for OAuth authorization.
+
+### `integration/webtrigger/.jwt.hurl is missing`
+
+Run `npm run test:api:webtrigger:bootstrap` first.
+
+### OAuth callback fails (api-route)
+
+Ensure `http://localhost:9876/callback` is listed as an authorized redirect
+URI in your OAuth 2.0 app in the Atlassian Developer Console.
+
+### Expired access token or OAuth errors (api-route)
+
+Delete `integration/api-route/access_token_response.json` and re-run
+`npm run test:api:bootstrap` to force a fresh authorization code flow.
+
+### JWT expired (webtrigger)
+
+Re-run `npm run test:api:webtrigger:bootstrap`. JWTs are valid for 15 minutes.
+
+### Missing custom scope errors (api-route)
+
+Ensure the custom scopes are registered before deployment:
 
 ```bash
-npm run test:api:bootstrap
+npm run forge:scopes
 ```
 
-`npm run test:api` requires the generated OAuth variables file.
+### 401 errors from webtrigger
 
-### OAuth callback fails
+Check that:
 
-Confirm the OAuth 2.0 (3LO) app callback URL is exactly:
+1. The correct secrets are set with `forge variables set`
+2. The secrets in `integration/webtrigger/.env.hurl` match the Forge variables
+3. The JWTs are fresh — re-run `npm run test:api:webtrigger:bootstrap`
+4. The `aud` claim matches the endpoint (plain vs as-user)
 
-```text
-http://localhost:9876/callback
-```
+### App REST API URL errors (api-route)
 
-If the callback URL differs, update the Developer Console app and rerun
-`npm run test:api:bootstrap`.
-
-### Expired access token or OAuth errors
-
-Generated access tokens expire. Delete the cached OAuth response and bootstrap
-again:
-
-```bash
-rm integration/access_token_response.json integration/.oauth.hurl
-npm run test:api:bootstrap
-```
-
-### Missing custom scope errors
-
-Confirm the OAuth app is configured with these scopes and that the user approved
-them during the browser consent flow:
-
-```text
-write:workitem:custom
-write:workitem-as-user:custom
-```
-
-If the consent page says the app has not requested supported Atlassian scopes,
-check that the authorization URL includes `sns=<app-id>.<env-id>`. The bootstrap
-script derives `sns` from `base_url`; set `oauth_sns` explicitly if derivation
-fails. Do not add `offline_access`; the Developer Console treats App API custom
-scopes as mutually exclusive with standard Atlassian scopes.
-
-### App REST API URL errors
-
-Check `base_url` in `integration/.env.hurl`. It must include both the Forge app
-ID and the environment ID:
+The `base_url` in `.env.hurl` must include the correct `app-id` and `env-id`:
 
 ```text
 https://<site>.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>
 ```
 
-### Dedup collisions
+- `app-id`: from `apps/api-route/manifest.yml` → `app.id`, strip the
+  `ari:cloud:ecosystem::app/` prefix
+- `env-id`: run `forge environments list` to get the environment UUID
 
-The Hurl suite generates a UUID per run with Hurl's `newUuid` template function.
-Do not add a `uuid=` value to `.env.hurl`; the suite manages unique dedup values
-itself.
+### Webtrigger URL errors
+
+The webtrigger URLs are per-installation. Run `forge webtrigger list` after
+each fresh install to get the current URLs.
