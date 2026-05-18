@@ -90,8 +90,8 @@ JWTs expire in 15 minutes. Re-run the bootstrap before each test run.
 ### Deploy the app and set secrets
 
 ```bash
-npm run forge:deploy:webtrigger
-npm run forge:install:webtrigger
+npm run forge:deploy
+npm run forge:install
 ```
 
 Then set the shared secrets as Forge environment variables:
@@ -144,12 +144,12 @@ this before each test session.
 npm run test:api:webtrigger
 ```
 
-### Deploy and install webtrigger
+### Deploy and install (both apps)
 
 ```bash
-npm run forge:deploy:webtrigger    # deploy webtrigger app
-npm run forge:install:webtrigger   # install on site in apps/webtrigger/.env
-npm run forge:upgrade:webtrigger   # upgrade an existing installation
+npm run forge:deploy    # deploy both apps
+npm run forge:install   # install both apps on the configured site
+npm run forge:upgrade   # upgrade existing installations
 ```
 
 ---
