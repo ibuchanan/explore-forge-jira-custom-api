@@ -179,154 +179,6 @@ header "WWW-Authenticate" == "Bearer"
 jsonpath "$.status" == 401
 
 
-# POST workitem-as-user-post — outside-in integration tests
-#
-# Tests the raise-on-behalf-of insert endpoint.
-# raiseOnBehalfOf is required.
-#
-# Prerequisites:
-#   - forge variables set WEBTRIGGER_AS_USER_TOKEN <secret>
-#   - npm run test:api:webtrigger:bootstrap
-#
-# .env.hurl variables:
-#   webtrigger_as_user_url  = <URL from `forge webtrigger list` for workitem-as-user-post>
-#   raise_on_behalf_of      = <Jira accountId of the user to raise on behalf of>
-
-
-# ---------------------------------------------------------------------------
-# Happy path — create an issue on behalf of another user
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{as_user_token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": {
-    "Summary": "Webtrigger as-user integration test [hurl]"
-  },
-  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
-}
-
-HTTP 201
-[Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.id" isString
-jsonpath "$.key" matches /^[A-Z]+-\d+$/
-jsonpath "$.self" startsWith "https://"
-
-
-# ---------------------------------------------------------------------------
-# 400 — missing required field: raiseOnBehalfOf
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{as_user_token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": { "Summary": "Missing raiseOnBehalfOf" }
-}
-
-HTTP 400
-[Asserts]
-header "Content-Type" contains "application/json"
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-jsonpath "$.detail" contains "raiseOnBehalfOf"
-
-
-# ---------------------------------------------------------------------------
-# 400 — empty raiseOnBehalfOf string
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{as_user_token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": { "Summary": "Empty raiseOnBehalfOf" },
-  "raiseOnBehalfOf": ""
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-jsonpath "$.detail" contains "raiseOnBehalfOf"
-
-
-# ---------------------------------------------------------------------------
-# 400 — missing required field: project
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{as_user_token}}
-Content-Type: application/json
-{
-  "issueType": "{{issue_type}}",
-  "fields": { "Summary": "Missing project" },
-  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-
-
-# ---------------------------------------------------------------------------
-# 400 — malformed JSON body
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{as_user_token}}
-Content-Type: application/json
-```
-not valid json at all
-```
-
-HTTP 400
-[Asserts]
-jsonpath "$.status" == 400
-jsonpath "$.detail" isString
-
-
-# ---------------------------------------------------------------------------
-# 401 — missing Authorization header
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": { "Summary": "No auth" },
-  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
-}
-
-HTTP 401
-[Asserts]
-header "WWW-Authenticate" == "Bearer"
-jsonpath "$.status" == 401
-
-
-# ---------------------------------------------------------------------------
-# 401 — plain token used against as-user endpoint (wrong audience)
-# ---------------------------------------------------------------------------
-POST {{webtrigger_as_user_url}}
-Authorization: Bearer {{token}}
-Content-Type: application/json
-{
-  "project": "{{project}}",
-  "issueType": "{{issue_type}}",
-  "fields": { "Summary": "Wrong audience" },
-  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
-}
-
-HTTP 401
-[Asserts]
-header "WWW-Authenticate" == "Bearer"
-jsonpath "$.status" == 401
-
-
 # POST workitem-upsert-post — outside-in integration tests
 #
 # Tests the upsert endpoint (create or return existing, no raiseOnBehalfOf).
@@ -470,6 +322,154 @@ Content-Type: application/json
   "issueType": "{{issue_type}}",
   "fields": { "Summary": "No auth" },
   "dedup": "project = {{project}}"
+}
+
+HTTP 401
+[Asserts]
+header "WWW-Authenticate" == "Bearer"
+jsonpath "$.status" == 401
+
+
+# POST workitem-as-user-post — outside-in integration tests
+#
+# Tests the raise-on-behalf-of insert endpoint.
+# raiseOnBehalfOf is required.
+#
+# Prerequisites:
+#   - forge variables set WEBTRIGGER_AS_USER_TOKEN <secret>
+#   - npm run test:api:webtrigger:bootstrap
+#
+# .env.hurl variables:
+#   webtrigger_as_user_url  = <URL from `forge webtrigger list` for workitem-as-user-post>
+#   raise_on_behalf_of      = <Jira accountId of the user to raise on behalf of>
+
+
+# ---------------------------------------------------------------------------
+# Happy path — create an issue on behalf of another user
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{as_user_token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": {
+    "Summary": "Webtrigger as-user integration test [hurl]"
+  },
+  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
+}
+
+HTTP 201
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.id" isString
+jsonpath "$.key" matches /^[A-Z]+-\d+$/
+jsonpath "$.self" startsWith "https://"
+
+
+# ---------------------------------------------------------------------------
+# 400 — missing required field: raiseOnBehalfOf
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{as_user_token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": { "Summary": "Missing raiseOnBehalfOf" }
+}
+
+HTTP 400
+[Asserts]
+header "Content-Type" contains "application/json"
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
+jsonpath "$.detail" contains "raiseOnBehalfOf"
+
+
+# ---------------------------------------------------------------------------
+# 400 — empty raiseOnBehalfOf string
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{as_user_token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": { "Summary": "Empty raiseOnBehalfOf" },
+  "raiseOnBehalfOf": ""
+}
+
+HTTP 400
+[Asserts]
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
+jsonpath "$.detail" contains "raiseOnBehalfOf"
+
+
+# ---------------------------------------------------------------------------
+# 400 — missing required field: project
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{as_user_token}}
+Content-Type: application/json
+{
+  "issueType": "{{issue_type}}",
+  "fields": { "Summary": "Missing project" },
+  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
+}
+
+HTTP 400
+[Asserts]
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
+
+
+# ---------------------------------------------------------------------------
+# 400 — malformed JSON body
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{as_user_token}}
+Content-Type: application/json
+```
+not valid json at all
+```
+
+HTTP 400
+[Asserts]
+jsonpath "$.status" == 400
+jsonpath "$.detail" isString
+
+
+# ---------------------------------------------------------------------------
+# 401 — missing Authorization header
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": { "Summary": "No auth" },
+  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
+}
+
+HTTP 401
+[Asserts]
+header "WWW-Authenticate" == "Bearer"
+jsonpath "$.status" == 401
+
+
+# ---------------------------------------------------------------------------
+# 401 — plain token used against as-user endpoint (wrong audience)
+# ---------------------------------------------------------------------------
+POST {{webtrigger_as_user_url}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+{
+  "project": "{{project}}",
+  "issueType": "{{issue_type}}",
+  "fields": { "Summary": "Wrong audience" },
+  "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
 }
 
 HTTP 401
