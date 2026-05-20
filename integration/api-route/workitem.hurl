@@ -12,8 +12,11 @@
 # The response body is captured and the access_token is assigned to `token`
 # for all following requests. uuid is generated once per Hurl session.
 POST https://auth.atlassian.com/oauth/token
-Content-Type: application/x-www-form-urlencoded
-grant_type=refresh_token&client_id={{oauth_client_id}}&client_secret={{oauth_client_secret}}&refresh_token={{oauth_refresh_token}}
+[FormParams]
+grant_type: refresh_token
+client_id: {{oauth_client_id}}
+client_secret: {{oauth_client_secret}}
+refresh_token: {{oauth_refresh_token}}
 
 HTTP 200
 [Captures]

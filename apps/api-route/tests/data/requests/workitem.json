@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "call": { "functionKey": "workitem-post" },
+  "headers": { "...": "..." },
+  "queryParameters": {},
+  "body": "{ \"project\": \"CS\", \"issueType\": \"Story\", \"fields\": { \"Summary\": \"Integration test issue [hurl]\" }}",
+  "path": "/svc/jira/89a6b224-3b44-4cef-8e4d-37aff29af277/apps/bb398628-d837-4378-9fe5-9b033fb24aac_ff091058-d87e-4e6d-b426-ec93e1121618/workitem",
+  "userPath": null,
+  "context": {
+    "cloudId": "89a6b224-3b44-4cef-8e4d-37aff29af277",
+    "moduleKey": "workitem-post",
+    "userAccess": { "enabled": false, "hasAccess": true }
+  },
+  "contextToken": "eyJ...kNQ"
+}
