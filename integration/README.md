@@ -29,13 +29,12 @@ Before running, create an OAuth 2.0 (3LO) app in the
 [Atlassian Developer Console](https://developer.atlassian.com/console/myapps/):
 
 1. Create a new **OAuth 2.0 (3LO)** app.
-2. Under **Permissions**, add:
+2. Permissions -> Add Marketplace or custom app -> add scopes
+3. Under **Permissions**, add:
    - `write:workitem:custom`
    - `write:workitem-as-user:custom`
-3. Under **Authorization**, add callback URL: `http://localhost:9876/callback`
-
-> **Note:** App API custom scopes are mutually exclusive with `offline_access`
-> in the Developer Console. Do not add `offline_access`.
+3. Permissions -> Add Jira API -> Granular scopes -> `read:forge-app:jira`
+4. Under **Authorization**, add callback URL: `http://localhost:9876/callback`
 
 ### Configure api-route local variables
 
@@ -76,6 +75,11 @@ npm run forge:deploy    # deploy api-route app
 npm run forge:install   # install on site in apps/api-route/.env
 npm run forge:upgrade   # upgrade an existing installation
 ```
+
+### Troubleshooting
+
+* 401 Unauthorized after a successful authorization code flow: Double check OAuth app scope `read:forge-app:jira`
+* 403 Forbidden: Enable a Forge app’s REST APIs in Connected Apps in Atlassian Administration
 
 ---
 
