@@ -65,8 +65,10 @@ modules:
       handler: index.handleWorkitemUpsertAsUser
 permissions:
   scopes:
-    - read:jira-work
-    - write:jira-work
+    read:jira-work:
+      allowImpersonation: true
+    write:jira-work:
+      allowImpersonation: true
 resources:
   - key: admin-page-resource
     path: src/frontend/index.tsx
