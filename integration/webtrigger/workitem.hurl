@@ -189,6 +189,8 @@ Content-Type: application/json
 }
 
 HTTP 200
+[Captures]
+upsert_key: jsonpath "$.key"
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.created" == true
@@ -202,6 +204,9 @@ jsonpath "$.warnings" isCollection
 
 # ---------------------------------------------------------------------------
 # Dedup hit — returns created: false when JQL matches existing issues
+#
+# Uses the issue key captured from the previous create so the issue created
+# above is the match that prevents a second creation.
 # ---------------------------------------------------------------------------
 POST {{webtrigger_upsert_url}}
 Authorization: Bearer {{token}}
@@ -210,9 +215,9 @@ Content-Type: application/json
   "project": "{{project}}",
   "issueType": "{{issue_type}}",
   "fields": {
-    "Summary": "Webtrigger upsert dedup hit [hurl]"
+    "Summary": "Webtrigger upsert integration test [hurl] {{uuid}}"
   },
-  "dedup": "project = {{project}} AND summary ~ \"Webtrigger upsert dedup hit [hurl]\" ORDER BY created DESC"
+  "dedup": "key = {{upsert_key}}"
 }
 
 HTTP 200
@@ -490,6 +495,8 @@ Content-Type: application/json
 }
 
 HTTP 200
+[Captures]
+upsert_asuser_key: jsonpath "$.key"
 [Asserts]
 header "Content-Type" contains "application/json"
 jsonpath "$.created" == true
@@ -503,6 +510,9 @@ jsonpath "$.warnings" isCollection
 
 # ---------------------------------------------------------------------------
 # Dedup hit — returns created: false when JQL matches existing issues
+#
+# Uses the issue key captured from the previous create so the issue created
+# above is the match that prevents a second creation.
 # ---------------------------------------------------------------------------
 POST {{webtrigger_upsert_as_user_url}}
 Authorization: Bearer {{as_user_token}}
@@ -511,9 +521,9 @@ Content-Type: application/json
   "project": "{{project}}",
   "issueType": "{{issue_type}}",
   "fields": {
-    "Summary": "Webtrigger upsert as-user dedup hit [hurl]"
+    "Summary": "Webtrigger upsert as-user integration test [hurl] {{uuid}}"
   },
-  "dedup": "project = {{project}} AND summary ~ \"Webtrigger upsert as-user dedup hit [hurl]\" ORDER BY created DESC",
+  "dedup": "key = {{upsert_asuser_key}}",
   "raiseOnBehalfOf": "{{raise_on_behalf_of}}"
 }
 
