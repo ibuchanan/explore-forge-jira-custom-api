@@ -33,6 +33,14 @@ vi.mock("../../src/workitem/jira-client", () => ({
   // they must be present even though handler tests mock resolveFieldNames at a higher level
   getIssueTypes: vi.fn(),
   getFieldsForIssueType: vi.fn(),
+  ProjectNotFoundError: class ProjectNotFoundError extends Error {
+    projectKey: string;
+    constructor(projectKey: string) {
+      super(`Project "${projectKey}" not found or not accessible.`);
+      this.name = "ProjectNotFoundError";
+      this.projectKey = projectKey;
+    }
+  },
   JiraApiError: class JiraApiError extends Error {
     status: number;
     body: string;
@@ -240,6 +248,27 @@ describe("handleWorkitem — field resolution errors", () => {
     expect(body.errors).toHaveLength(3);
   });
 
+  it("returns 400 when the project is not found", async () => {
+    const { ProjectNotFoundError } = await import(
+      "../../src/workitem/jira-client"
+    );
+    mockResolveFieldNames.mockRejectedValue(
+      new ProjectNotFoundError("MISSING"),
+    );
+
+    const res = await handleWorkitem(
+      makeRequest({
+        project: "MISSING",
+        issueType: "Story",
+        fields: { Summary: "Test" },
+      }),
+    );
+
+    expect(res.statusCode).toBe(400);
+    const body = JSON.parse(res.body);
+    expect(body.detail).toMatch(/MISSING/);
+  });
+
   it("returns 500 when the field resolver throws", async () => {
     mockResolveFieldNames.mockRejectedValue(new Error("Jira unreachable"));
 
@@ -390,6 +419,32 @@ describe("handleWorkitem — Jira API error forwarding", () => {
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
     expect(body.detail).toMatch(/create issue/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real Forge request envelope
+// ---------------------------------------------------------------------------
+
+describe("handleWorkitem — real Forge request envelope", () => {
+  it("accepts the full Forge App REST API request shape and returns 201", async () => {
+    // Uses the fixture captured from a live Forge invocation to confirm the
+    // handler correctly reads req.body from the full envelope (not the envelope
+    // itself). Regression test for the asUser→asApp bug that caused 500s.
+    const fixture = (await import(
+      "../data/requests/workitem.json"
+    )) as { body: string };
+
+    mockResolveFieldNames.mockResolvedValue(
+      makeResolution([["Summary", "summary"]]),
+    );
+    mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
+
+    const res = await handleWorkitem(fixture);
+
+    expect(res.statusCode).toBe(201);
+    const body = JSON.parse(res.body);
+    expect(body.key).toBe(CREATED_ISSUE.key);
   });
 });
 

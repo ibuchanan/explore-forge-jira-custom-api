@@ -42,6 +42,14 @@ vi.mock("../../src/workitem/jira-client", () => ({
   writeOtelProperty: vi.fn().mockResolvedValue(undefined),
   getIssueTypes: vi.fn(),
   getFieldsForIssueType: vi.fn(),
+  ProjectNotFoundError: class ProjectNotFoundError extends Error {
+    projectKey: string;
+    constructor(projectKey: string) {
+      super(`Project "${projectKey}" not found or not accessible.`);
+      this.name = "ProjectNotFoundError";
+      this.projectKey = projectKey;
+    }
+  },
   JiraApiError: class JiraApiError extends Error {
     status: number;
     body: string;

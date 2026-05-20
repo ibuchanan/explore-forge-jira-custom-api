@@ -54,8 +54,9 @@ export interface FieldResolutionSuccess {
 /** Default production dependencies */
 // fallow-ignore-next-line unused-export
 export const defaultDeps: FieldResolverDeps = {
-  getIssueTypes,
-  getFieldsForIssueType,
+  getIssueTypes: (projectKey) => getIssueTypes(projectKey, "asApp"),
+  getFieldsForIssueType: (projectKey, issueTypeId) =>
+    getFieldsForIssueType(projectKey, issueTypeId, "asApp"),
 };
 
 /**

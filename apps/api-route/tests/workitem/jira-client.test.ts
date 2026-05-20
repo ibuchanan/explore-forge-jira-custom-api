@@ -34,7 +34,9 @@ vi.mock("@forge/api", () => {
 
 import {
   JiraApiError,
+  ProjectNotFoundError,
   createIssue,
+  getIssueTypes,
   searchIssues,
   writeOtelProperty,
 } from "../../src/workitem/jira-client";
@@ -70,6 +72,44 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 // searchIssues
 // ---------------------------------------------------------------------------
+
+describe("getIssueTypes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("throws ProjectNotFoundError when Jira returns 404", async () => {
+    mockRequestJira.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+
+    await expect(getIssueTypes("MISSING", "asApp")).rejects.toThrow(
+      ProjectNotFoundError,
+    );
+  });
+
+  it("ProjectNotFoundError carries the project key", async () => {
+    mockRequestJira.mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" });
+
+    let caught: ProjectNotFoundError | undefined;
+    try {
+      await getIssueTypes("MISSING", "asApp");
+    } catch (e) {
+      caught = e as ProjectNotFoundError;
+    }
+
+    expect(caught).toBeInstanceOf(ProjectNotFoundError);
+    expect(caught?.projectKey).toBe("MISSING");
+    expect(caught?.message).toMatch(/MISSING/);
+  });
+
+  it("throws a generic Error for other non-ok statuses", async () => {
+    mockRequestJira.mockResolvedValue({ ok: false, status: 500, statusText: "Internal Server Error" });
+
+    await expect(getIssueTypes("HSP", "asApp")).rejects.toThrow(Error);
+    await expect(getIssueTypes("HSP", "asApp")).rejects.not.toThrow(
+      ProjectNotFoundError,
+    );
+  });
+});
 
 describe("searchIssues", () => {
   it("returns keys from the issues array", async () => {

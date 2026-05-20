@@ -39,6 +39,9 @@ export async function getIssueTypes(
         .requestJira(url, { headers: { Accept: "application/json" } }));
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new ProjectNotFoundError(projectKey);
+    }
     throw new Error(
       `Failed to fetch issue types for project ${projectKey}: ${response.status} ${response.statusText}`,
     );
@@ -228,6 +231,20 @@ export async function writeOtelProperty(
  * Structured error carrying the Jira HTTP status and raw response body,
  * so the handler can forward it faithfully.
  */
+/**
+ * Thrown when Jira returns 404 for a project key — indicates the project
+ * does not exist or is not accessible to the caller. Surfaces as a 400
+ * (bad request) rather than a 500 (internal error) at the handler level.
+ */
+export class ProjectNotFoundError extends Error {
+  readonly projectKey: string;
+  constructor(projectKey: string) {
+    super(`Project "${projectKey}" not found or not accessible.`);
+    this.name = "ProjectNotFoundError";
+    this.projectKey = projectKey;
+  }
+}
+
 export class JiraApiError extends Error {
   constructor(
     public readonly status: number,

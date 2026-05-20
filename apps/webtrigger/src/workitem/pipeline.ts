@@ -20,7 +20,7 @@ import { resolveFieldNames, translateKeys } from "./field-resolver";
 import type { FieldMeta } from "./field-coercer";
 import { coerceFields } from "./field-coercer";
 import type { AuthClient } from "./jira-client";
-import { JiraApiError, searchIssues } from "./jira-client";
+import { JiraApiError, ProjectNotFoundError, searchIssues } from "./jira-client";
 import type { UpsertResponse } from "./types";
 
 /** Input to the pipeline — the validated, schema-parsed request data. */
@@ -77,6 +77,12 @@ export async function runPipeline(
     resolved = result.value.resolved;
     fieldMetaById = result.value.fieldMetaById as Map<string, FieldMeta>;
   } catch (err) {
+    if (err instanceof ProjectNotFoundError) {
+      return {
+        ok: false,
+        response: buildErrorResponse(400, err.message),
+      };
+    }
     const message = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
