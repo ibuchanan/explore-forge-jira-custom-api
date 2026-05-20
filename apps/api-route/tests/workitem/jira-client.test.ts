@@ -7,7 +7,7 @@
  * the `asUser()` / `asApp()` chain.
  *
  * Covered:
- *  - searchIssues   — POST /rest/api/3/issue/search, key extraction, cap, JQL errors
+ *  - searchIssues   — POST /rest/api/3/search/jql, key extraction, cap, JQL errors
  *  - createIssue    — POST /rest/api/3/issue, happy path and error forwarding
  *  - writeOtelProperty — PUT issue property, happy path and silent failure
  */

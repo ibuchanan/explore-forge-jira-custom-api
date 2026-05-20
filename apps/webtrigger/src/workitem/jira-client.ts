@@ -124,7 +124,7 @@ export async function searchIssues(
   authClient: AuthClient = api.asApp(),
 ): Promise<string[]> {
   const response = await authClient.requestJira(
-    route`/rest/api/3/issue/search`,
+    route`/rest/api/3/search/jql`,
     {
       method: "POST",
       headers: {
