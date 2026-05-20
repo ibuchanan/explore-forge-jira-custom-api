@@ -31,12 +31,20 @@ const AS_USER_TOKEN_VAR = "WEBTRIGGER_AS_USER_TOKEN" as const;
 
 /** Build a valid plain JWT with sensible defaults. */
 async function validPlainJwt(overrides: Parameters<typeof makeJwt>[0] = {}) {
-  return makeJwt({ secret: TEST_WEBTRIGGER_TOKEN, audience: AUDIENCE_PLAIN, ...overrides });
+  return makeJwt({
+    secret: TEST_WEBTRIGGER_TOKEN,
+    audience: AUDIENCE_PLAIN,
+    ...overrides,
+  });
 }
 
 /** Build a valid as-user JWT with sensible defaults. */
 async function validAsUserJwt(overrides: Parameters<typeof makeJwt>[0] = {}) {
-  return makeJwt({ secret: TEST_WEBTRIGGER_AS_USER_TOKEN, audience: AUDIENCE_AS_USER, ...overrides });
+  return makeJwt({
+    secret: TEST_WEBTRIGGER_AS_USER_TOKEN,
+    audience: AUDIENCE_AS_USER,
+    ...overrides,
+  });
 }
 
 /** Headers object carrying the given token as a Bearer. */

@@ -20,7 +20,11 @@ import { resolveFieldNames, translateKeys } from "./field-resolver";
 import type { FieldMeta } from "./field-coercer";
 import { coerceFields } from "./field-coercer";
 import type { AuthClient } from "./jira-client";
-import { JiraApiError, ProjectNotFoundError, searchIssues } from "./jira-client";
+import {
+  JiraApiError,
+  ProjectNotFoundError,
+  searchIssues,
+} from "./jira-client";
 import type { UpsertResponse } from "./types";
 
 /** Input to the pipeline — the validated, schema-parsed request data. */

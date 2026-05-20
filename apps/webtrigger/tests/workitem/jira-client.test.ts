@@ -7,7 +7,7 @@
  * the `asUser()` / `asApp()` chain.
  *
  * Covered:
- *  - searchIssues   — POST /rest/api/3/search/jql, key extraction, cap, JQL errors
+ *  - searchIssues   — GET /rest/api/3/search/jql, key extraction, cap, JQL errors
  *  - createIssue    — POST /rest/api/3/issue, happy path and error forwarding
  *  - writeOtelProperty — PUT issue property, happy path and silent failure
  */
@@ -33,8 +33,8 @@ vi.mock("@forge/api", () => {
 });
 
 import {
-  JiraApiError,
   createIssue,
+  JiraApiError,
   searchIssues,
   writeOtelProperty,
 } from "../../src/workitem/jira-client";
@@ -135,18 +135,38 @@ describe("searchIssues", () => {
     expect(keys).toHaveLength(3);
   });
 
-  it("passes POST body with jql, maxResults, and fields=[key]", async () => {
+  it("passes JQL search parameters in the request URL", async () => {
     mockRequestJira.mockResolvedValue(makeOkResponse({ issues: [] }));
 
     await searchIssues('project = HSP AND summary ~ "My Story"', 5);
 
     expect(mockRequestJira).toHaveBeenCalledOnce();
-    const [, options] = mockRequestJira.mock.calls[0];
-    expect(options.method).toBe("POST");
-    const body = JSON.parse(options.body);
-    expect(body.jql).toBe('project = HSP AND summary ~ "My Story"');
-    expect(body.maxResults).toBe(5);
-    expect(body.fields).toContain("key");
+    const [url, options] = mockRequestJira.mock.calls[0];
+    expect(url).toContain("/rest/api/3/search/jql?");
+    expect(url).toContain("jql=project = HSP AND summary ~ ");
+    expect(url).toContain("maxResults=5");
+    expect(url).toContain("fields=key");
+    expect(options).toEqual({ headers: { Accept: "application/json" } });
+  });
+
+  it("uses direct issue lookup for exact key JQL", async () => {
+    mockRequestJira.mockResolvedValue(makeOkResponse({ key: "HSP-123" }));
+
+    const keys = await searchIssues("key = HSP-123");
+
+    expect(keys).toEqual(["HSP-123"]);
+    expect(mockRequestJira).toHaveBeenCalledOnce();
+    const [url, options] = mockRequestJira.mock.calls[0];
+    expect(url).toContain("/rest/api/3/issue/HSP-123?fields=key");
+    expect(options).toEqual({ headers: { Accept: "application/json" } });
+  });
+
+  it("returns no matches when exact key lookup returns 404", async () => {
+    mockRequestJira.mockResolvedValue(makeErrorResponse(404, ""));
+
+    const keys = await searchIssues("key = HSP-404");
+
+    expect(keys).toEqual([]);
   });
 
   it("throws JiraApiError when Jira returns a non-ok status", async () => {

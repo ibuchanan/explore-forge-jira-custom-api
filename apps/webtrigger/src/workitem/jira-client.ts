@@ -7,8 +7,8 @@
  * @see {@link https://developer.atlassian.com/platform/forge/runtime-reference/product-fetch-api/|Product Fetch API}
  */
 
-import api, { route } from "@forge/api";
 import type { RequestProductMethods } from "@forge/api";
+import api, { route } from "@forge/api";
 import type { components } from "forge-ahead/jira/platform-3";
 import type { WorkitemResponse } from "./types";
 
@@ -108,6 +108,33 @@ export async function getFieldsForIssueType(
  */
 export type AuthClient = RequestProductMethods;
 
+const EXACT_ISSUE_KEY_JQL = /^\s*key\s*=\s*"?([A-Z][A-Z0-9]+-\d+)"?\s*$/i;
+
+function parseExactIssueKeyJql(jql: string): string | undefined {
+  const match = EXACT_ISSUE_KEY_JQL.exec(jql);
+  return match?.[1]?.toUpperCase();
+}
+
+async function getIssueKeyIfVisible(
+  issueKey: string,
+  authClient: AuthClient,
+): Promise<string[]> {
+  const response = await authClient.requestJira(
+    route`/rest/api/3/issue/${issueKey}?fields=key`,
+    { headers: { Accept: "application/json" } },
+  );
+
+  if (response.status === 404) return [];
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new JiraApiError(response.status, errorBody);
+  }
+
+  const data = (await response.json()) as { key?: string };
+  return data.key ? [data.key] : [];
+}
+
 /**
  * Searches Jira issues using JQL and returns up to `maxResults` issue keys.
  *
@@ -123,16 +150,17 @@ export async function searchIssues(
   maxResults = 10,
   authClient: AuthClient = api.asApp(),
 ): Promise<string[]> {
+  const exactIssueKey = parseExactIssueKeyJql(jql);
+  if (exactIssueKey) {
+    return (await getIssueKeyIfVisible(exactIssueKey, authClient)).slice(
+      0,
+      maxResults,
+    );
+  }
+
   const response = await authClient.requestJira(
-    route`/rest/api/3/search/jql`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ jql, maxResults, fields: ["key"] }),
-    },
+    route`/rest/api/3/search/jql?jql=${jql}&maxResults=${maxResults}&fields=key`,
+    { headers: { Accept: "application/json" } },
   );
 
   if (!response.ok) {

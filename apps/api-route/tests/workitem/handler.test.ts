@@ -431,9 +431,9 @@ describe("handleWorkitem — real Forge request envelope", () => {
     // Uses the fixture captured from a live Forge invocation to confirm the
     // handler correctly reads req.body from the full envelope (not the envelope
     // itself). Regression test for the asUser→asApp bug that caused 500s.
-    const fixture = (await import(
-      "../data/requests/workitem.json"
-    )) as { body: string };
+    const fixture = (await import("../data/requests/workitem.json")) as {
+      body: string;
+    };
 
     mockResolveFieldNames.mockResolvedValue(
       makeResolution([["Summary", "summary"]]),

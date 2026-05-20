@@ -143,10 +143,10 @@ export async function verifyBearerToken(
   }
 
   // 2. Extract the Authorization header (headers are lowercase, multi-value)
-  const authHeader = headers?.["authorization"]?.[0];
+  const authHeader = headers?.authorization?.[0];
   const BEARER_PREFIX = "Bearer ";
 
-  if (!authHeader || !authHeader.startsWith(BEARER_PREFIX)) {
+  if (!authHeader?.startsWith(BEARER_PREFIX)) {
     console.warn(
       "webtrigger auth failed: missing or malformed Authorization header",
     );

@@ -92,7 +92,6 @@ vi.mock("@forge/api", () => ({
     strings.reduce((acc, s, i) => acc + s + (values[i] ?? ""), ""),
 }));
 
-
 const mockResolveFieldNames = vi.mocked(resolveFieldNames);
 const mockCreateIssue = vi.mocked(createIssue);
 const mockWriteOtelProperty = vi.mocked(writeOtelProperty);

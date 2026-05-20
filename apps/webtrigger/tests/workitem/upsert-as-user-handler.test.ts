@@ -94,7 +94,6 @@ vi.mock("@forge/api", () => ({
     strings.reduce((acc, s, i) => acc + s + (values[i] ?? ""), ""),
 }));
 
-
 const mockResolveFieldNames = vi.mocked(resolveFieldNames);
 const mockCreateIssue = vi.mocked(createIssue);
 const mockSearchIssues = vi.mocked(searchIssues);
@@ -128,7 +127,9 @@ afterEach(() => {
 describe("handleWorkitemUpsertAsUser — validation", () => {
   it("returns 400 when raiseOnBehalfOf is absent", async () => {
     const { raiseOnBehalfOf: _rob, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemUpsertAsUser(await makeRequest(bodyWithout));
+    const res = await handleWorkitemUpsertAsUser(
+      await makeRequest(bodyWithout),
+    );
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -147,7 +148,9 @@ describe("handleWorkitemUpsertAsUser — validation", () => {
 
   it("returns 400 when dedup is absent", async () => {
     const { dedup: _d, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemUpsertAsUser(await makeRequest(bodyWithout));
+    const res = await handleWorkitemUpsertAsUser(
+      await makeRequest(bodyWithout),
+    );
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -165,13 +168,17 @@ describe("handleWorkitemUpsertAsUser — validation", () => {
   });
 
   it("returns 400 for invalid JSON", async () => {
-    const res = await handleWorkitemUpsertAsUser(await makeRawRequest("not json"));
+    const res = await handleWorkitemUpsertAsUser(
+      await makeRawRequest("not json"),
+    );
     expect(res.statusCode).toBe(400);
   });
 
   it("returns 400 when project is missing", async () => {
     const { project: _p, ...bodyWithout } = VALID_BODY;
-    const res = await handleWorkitemUpsertAsUser(await makeRequest(bodyWithout));
+    const res = await handleWorkitemUpsertAsUser(
+      await makeRequest(bodyWithout),
+    );
     expect(res.statusCode).toBe(400);
   });
 });
@@ -282,7 +289,9 @@ describe("handleWorkitemUpsertAsUser — creation after no dedup match", () => {
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
     const otel = { traceId: "a".repeat(32), spanId: "b".repeat(16) };
-    await handleWorkitemUpsertAsUser(await makeRequest({ ...VALID_BODY, otel }));
+    await handleWorkitemUpsertAsUser(
+      await makeRequest({ ...VALID_BODY, otel }),
+    );
 
     expect(mockWriteOtelProperty).toHaveBeenCalledWith(CREATED_ISSUE.key, otel);
   });

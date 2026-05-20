@@ -15,7 +15,12 @@
 
 import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { err } from "forge-ahead";
-import { makeRequest, makeRawRequest, makeResolution, TEST_WEBTRIGGER_TOKEN } from "./test-helpers";
+import {
+  makeRequest,
+  makeRawRequest,
+  makeResolution,
+  TEST_WEBTRIGGER_TOKEN,
+} from "./test-helpers";
 import { handleWorkitemUpsert } from "../../src/workitem/upsert-handler";
 import { resolveFieldNames } from "../../src/workitem/field-resolver";
 
@@ -116,7 +121,11 @@ describe("handleWorkitemUpsert — request body validation", () => {
 
   it("returns 400 when project is missing", async () => {
     const res = await handleWorkitemUpsert(
-      await makeRequest({ issueType: "Story", fields: {}, dedup: "project = HSP" }),
+      await makeRequest({
+        issueType: "Story",
+        fields: {},
+        dedup: "project = HSP",
+      }),
     );
     expect(res.statusCode).toBe(400);
   });
@@ -173,7 +182,9 @@ describe("handleWorkitemUpsert — dedup hit", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockSearchIssues.mockResolvedValue(["HSP-40", "HSP-38"]);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -200,7 +211,9 @@ describe("handleWorkitemUpsert — dedup hit", () => {
     const tenKeys = Array.from({ length: 10 }, (_, i) => `HSP-${i + 1}`);
     mockSearchIssues.mockResolvedValue(tenKeys);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     const body = JSON.parse(res.body);
     expect(body.matches).toHaveLength(10);
@@ -216,7 +229,9 @@ describe("handleWorkitemUpsert — cross-project warning", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockSearchIssues.mockResolvedValue(["OTHER-123", "HSP-40"]);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     const body = JSON.parse(res.body);
     expect(body.created).toBe(false);
@@ -229,7 +244,9 @@ describe("handleWorkitemUpsert — cross-project warning", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockSearchIssues.mockResolvedValue(["HSP-40", "HSP-38"]);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     const body = JSON.parse(res.body);
     expect(body.warnings).toEqual([]);
@@ -240,7 +257,9 @@ describe("handleWorkitemUpsert — cross-project warning", () => {
     // project is "HSP", matches include "hsp-10" (lowercase) — should NOT warn
     mockSearchIssues.mockResolvedValue(["hsp-10"]);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     const body = JSON.parse(res.body);
     expect(body.warnings).toEqual([]);
@@ -257,7 +276,9 @@ describe("handleWorkitemUpsert — creation path", () => {
     mockSearchIssues.mockResolvedValue([]);
     mockCreateIssue.mockResolvedValue(CREATED_ISSUE);
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body);
@@ -306,7 +327,9 @@ describe("handleWorkitemUpsert — Jira error forwarding", () => {
       new JiraApiError(400, JSON.stringify({ errorMessages: ["Invalid JQL"] })),
     );
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -317,7 +340,9 @@ describe("handleWorkitemUpsert — Jira error forwarding", () => {
     mockResolveFieldNames.mockResolvedValue(makeResolution());
     mockSearchIssues.mockRejectedValue(new Error("Network timeout"));
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
@@ -334,7 +359,9 @@ describe("handleWorkitemUpsert — Jira error forwarding", () => {
       ),
     );
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(400);
     const body = JSON.parse(res.body);
@@ -346,7 +373,9 @@ describe("handleWorkitemUpsert — Jira error forwarding", () => {
     mockSearchIssues.mockResolvedValue([]);
     mockCreateIssue.mockRejectedValue(new Error("Timeout"));
 
-    const res = await handleWorkitemUpsert(await makeRequest(VALID_UPSERT_BODY));
+    const res = await handleWorkitemUpsert(
+      await makeRequest(VALID_UPSERT_BODY),
+    );
 
     expect(res.statusCode).toBe(500);
     const body = JSON.parse(res.body);
@@ -378,7 +407,10 @@ describe("handleWorkitemUpsert — field resolution errors", () => {
     );
 
     const res = await handleWorkitemUpsert(
-      await makeRequest({ ...VALID_UPSERT_BODY, fields: { "Unknown Field": 1 } }),
+      await makeRequest({
+        ...VALID_UPSERT_BODY,
+        fields: { "Unknown Field": 1 },
+      }),
     );
 
     expect(res.statusCode).toBe(400);
@@ -418,7 +450,9 @@ describe("handleWorkitemUpsert — OTel property write", () => {
     mockSearchIssues.mockResolvedValue(["HSP-1"]);
 
     const otel = { traceId: "a".repeat(32), spanId: "b".repeat(16) };
-    await handleWorkitemUpsert(await makeRequest({ ...VALID_UPSERT_BODY, otel }));
+    await handleWorkitemUpsert(
+      await makeRequest({ ...VALID_UPSERT_BODY, otel }),
+    );
 
     expect(mockWriteOtelProperty).not.toHaveBeenCalled();
   });
