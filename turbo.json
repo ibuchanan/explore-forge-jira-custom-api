@@ -79,6 +79,14 @@
       "cache": false,
       "persistent": false
     },
+    "forge:register": {
+      "cache": false,
+      "persistent": false
+    },
+    "forge:reset-registration": {
+      "cache": false,
+      "persistent": false
+    },
     "forge:uninstall": {
       "cache": false,
       "persistent": false

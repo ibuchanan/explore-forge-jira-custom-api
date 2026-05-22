@@ -135,6 +135,19 @@ Install dependencies from the monorepo root:
 npm install
 ```
 
+If you cloned this repository and want your own Forge apps, register fresh app
+IDs before deploying. The root script removes the committed `app.id` values from
+each Forge app manifest, then runs `forge register` for each app sequentially:
+
+```bash
+npm run forge:register
+```
+
+If you only need to remove the existing app IDs and register later, run
+`npm run forge:reset-registration` instead. Do not use these scripts for normal
+day-to-day development unless you intentionally want to disconnect the local
+manifests from the currently registered Forge apps.
+
 Configure whichever app you want to run:
 
 ```bash
@@ -165,6 +178,12 @@ npm run check
 
 # Regenerate Jira OpenAPI types
 npm run generate
+
+# For a cloned repo: remove committed app IDs and register fresh Forge apps
+npm run forge:register
+
+# Only remove committed app IDs, leaving registration for later
+npm run forge:reset-registration
 
 # Deploy and install both Forge apps for the configured environments
 npm run forge:deploy

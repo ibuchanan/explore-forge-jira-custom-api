@@ -13,6 +13,8 @@
     "forge:scopes": "source .env && forge custom-scopes create --environment $FORGE_ENVIRONMENT",
     "forge:deploy": "source .env && forge deploy --environment $FORGE_ENVIRONMENT",
     "forge:install": "source .env && forge install --site \"$FORGE_SITENAME.atlassian.net\" --product $FORGE_PRODUCT --environment $FORGE_ENVIRONMENT --non-interactive",
+    "forge:register": "npm run forge:reset-registration && forge register",
+    "forge:reset-registration": "node --input-type=module -e \"import fs from 'node:fs'; import YAML from 'yaml'; const path = 'manifest.yml'; const doc = YAML.parseDocument(fs.readFileSync(path, 'utf8')); if (doc.hasIn(['app', 'id'])) { doc.deleteIn(['app', 'id']); fs.writeFileSync(path, String(doc)); console.log('Removed app.id from manifest.yml'); } else { console.log('manifest.yml has no app.id'); }\"",
     "forge:uninstall": "source .env && forge uninstall --site \"$FORGE_SITENAME.atlassian.net\" --product $FORGE_PRODUCT",
     "forge:upgrade": "source .env && forge install --upgrade --site \"$FORGE_SITENAME.atlassian.net\" --product $FORGE_PRODUCT --environment $FORGE_ENVIRONMENT --non-interactive",
     "forge:variables:set:dotenv": "./scripts/forge-vars-from-env.sh",

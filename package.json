@@ -22,6 +22,8 @@
     "format:check": "turbo run format:check",
     "forge:deploy": "turbo run forge:deploy",
     "forge:install": "turbo run forge:install",
+    "forge:register": "turbo run forge:register --concurrency=1",
+    "forge:reset-registration": "turbo run forge:reset-registration",
     "forge:uninstall": "turbo run forge:uninstall",
     "forge:upgrade": "turbo run forge:upgrade",
     "forge:scopes": "turbo run forge:scopes",
