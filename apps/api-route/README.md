@@ -46,7 +46,7 @@ require `"raiseOnBehalfOf"` (a Jira `accountId`).
 
 ```bash
 cp .env.example .env
-# Edit .env: set SITENAME (e.g. "mycompany") and PRODUCT (e.g. "jira")
+# Edit .env: set FORGE_SITENAME (e.g. "mycompany") and FORGE_PRODUCT (e.g. "jira")
 ```
 
 ### 2. Register custom OAuth scopes
@@ -64,7 +64,7 @@ from `custom-scopes.yaml`.
 ### 3. Deploy and install
 
 ```bash
-npm run forge:deploy    # Build and deploy to the development environment
+npm run forge:deploy    # Build and deploy to the environment configured in .env
 npm run forge:install   # Install on the site configured in .env
 ```
 
@@ -187,7 +187,7 @@ npm run typecheck     # TypeScript type-check only
 | Script            | Description                                             |
 |-------------------|---------------------------------------------------------|
 | `forge:scopes`    | Register custom OAuth scopes (run once per environment) |
-| `forge:deploy`    | Build and deploy to development environment             |
+| `forge:deploy`    | Build and deploy to the environment in `.env`           |
 | `forge:install`   | Install on the site in `.env`                           |
 | `forge:upgrade`   | Upgrade an existing installation                        |
 | `forge:uninstall` | Uninstall from the site in `.env`                       |

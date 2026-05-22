@@ -91,18 +91,14 @@ secrets and writes them to `integration/webtrigger/.jwt.hurl`.
 
 JWTs expire in 15 minutes. Re-run the bootstrap before each test run.
 
-### Deploy the app and set secrets
+### Configure, deploy, and set secrets
+
+Configure the webtrigger app-local `.env` file:
 
 ```bash
-npm run forge:deploy
-npm run forge:install
-```
-
-Then set the shared secrets as Forge environment variables:
-
-```bash
-forge variables set --environment development WEBTRIGGER_TOKEN <value>
-forge variables set --environment development WEBTRIGGER_AS_USER_TOKEN <value>
+cp apps/webtrigger/.env.example apps/webtrigger/.env
+# Edit apps/webtrigger/.env: set FORGE_SITENAME, FORGE_PRODUCT,
+# FORGE_ENVIRONMENT, WEBTRIGGER_TOKEN, and WEBTRIGGER_AS_USER_TOKEN.
 ```
 
 Generate strong secrets with:
@@ -111,20 +107,35 @@ Generate strong secrets with:
 openssl rand -hex 32   # run twice — once per token
 ```
 
+Upload the non-`FORGE_*` runtime variables from `apps/webtrigger/.env`, then
+deploy and install the app:
+
+```bash
+npm run forge:variables:set:dotenv
+npm --workspace=jira-custom-api-via-webtriggers run forge:deploy
+npm --workspace=jira-custom-api-via-webtriggers run forge:install
+```
+
 ### Find webtrigger URLs
 
 ```bash
-forge webtrigger list
+npm run forge:webtrigger:list
 ```
 
-Note the URL for each trigger key — you will need them in `.env.hurl`.
+Copy the URL for each trigger key into `integration/webtrigger/.env.hurl`:
+
+| Trigger key | `.env.hurl` variable |
+| --- | --- |
+| `workitem-post` | `webtrigger_url` |
+| `workitem-as-user-post` | `webtrigger_as_user_url` |
+| `workitem-upsert-post` | `webtrigger_upsert_url` |
+| `workitem-upsert-as-user-post` | `webtrigger_upsert_as_user_url` |
 
 ### Configure webtrigger local variables
 
 ```bash
 cp integration/webtrigger/.env.hurl.example integration/webtrigger/.env.hurl
 # Edit integration/webtrigger/.env.hurl and fill in:
-#   webtrigger_token, webtrigger_as_user_token  (must match forge variables)
 #   webtrigger_url, webtrigger_as_user_url,
 #   webtrigger_upsert_url, webtrigger_upsert_as_user_url
 #   project, issue_type, raise_on_behalf_of
@@ -138,9 +149,9 @@ See `integration/webtrigger/.env.hurl.example` for full documentation.
 npm run test:api:bootstrap:webtrigger
 ```
 
-This mints fresh JWTs from the secrets in `.env.hurl` and writes them to
-`integration/webtrigger/.jwt.hurl`. JWTs are valid for 15 minutes — re-run
-this before each test session.
+This mints fresh JWTs from `WEBTRIGGER_TOKEN` and `WEBTRIGGER_AS_USER_TOKEN`
+in `apps/webtrigger/.env` and writes them to `integration/webtrigger/.jwt.hurl`.
+JWTs are valid for 15 minutes — re-run this before each test session.
 
 ### Run the webtrigger tests
 
@@ -209,8 +220,8 @@ npm run forge:scopes
 
 Check that:
 
-1. The correct secrets are set with `forge variables set`
-2. The secrets in `integration/webtrigger/.env.hurl` match the Forge variables
+1. The correct secrets are in `apps/webtrigger/.env`
+2. `npm run forge:variables:set:dotenv` has uploaded them as Forge variables
 3. The JWTs are fresh — re-run `npm run test:api:bootstrap:webtrigger`
 4. The `aud` claim matches the endpoint (plain vs as-user)
 
@@ -228,5 +239,5 @@ https://<site>.atlassian.net/gateway/api/svc/jira/apps/<app-id>_<env-id>
 
 ### Webtrigger URL errors
 
-The webtrigger URLs are per-installation. Run `forge webtrigger list` after
+The webtrigger URLs are per-installation. Run `npm run forge:webtrigger:list` after
 each fresh install to get the current URLs.

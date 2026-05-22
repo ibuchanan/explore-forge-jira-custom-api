@@ -9,3 +9,4 @@ export { handleWorkitem } from "./workitem/handler";
 export { handleWorkitemAsUser } from "./workitem/insert-as-user-handler";
 export { handleWorkitemUpsert } from "./workitem/upsert-handler";
 export { handleWorkitemUpsertAsUser } from "./workitem/upsert-as-user-handler";
+export { handler as adminPageResolver } from "./resolvers";

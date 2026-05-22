@@ -7,9 +7,11 @@ app:
 modules:
   jira:adminPage:
     - key: admin-page
-      title: API Base URL
+      title: Example Webtrigger
       render: native
       resource: admin-page-resource
+      resolver:
+        function: admin-page-resolver
   jira:entityProperty:
     - key: otel-issue-property
       entityType: issue
@@ -39,6 +41,8 @@ modules:
       handler: index.handleWorkitemUpsert
     - key: wi-upsert-asuser-fn
       handler: index.handleWorkitemUpsertAsUser
+    - key: admin-page-resolver
+      handler: index.adminPageResolver
 permissions:
   scopes:
     read:jira-work:

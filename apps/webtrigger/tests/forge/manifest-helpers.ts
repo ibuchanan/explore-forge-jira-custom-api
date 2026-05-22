@@ -218,11 +218,16 @@ export function getManifestHandlerReferences(
 
   for (const module of manifest.modules["jira:adminPage"] || []) {
     if (module.resolver) {
-      refs.push({
-        moduleType: "jira:adminPage",
-        key: module.key,
-        handler: `src/resolvers/index.ts#${module.resolver.function}`,
-      });
+      const funcDef = (manifest.modules.function || []).find(
+        (f) => f.key === module.resolver?.function,
+      );
+      if (funcDef) {
+        refs.push({
+          moduleType: "jira:adminPage",
+          key: module.key,
+          handler: funcDef.handler,
+        });
+      }
     }
   }
 

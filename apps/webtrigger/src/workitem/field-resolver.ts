@@ -15,6 +15,7 @@ import { err, ok, type Result } from "forge-ahead";
 import type { ValidationProblemDetails } from "forge-ahead";
 import type { components } from "forge-ahead/jira/platform-3";
 import { getFieldsForIssueType, getIssueTypes } from "./jira-client";
+import type { AuthClient } from "./jira-client";
 import type { FieldResolution, FieldResolutionError } from "./types";
 
 /**
@@ -33,10 +34,14 @@ type JiraIssueTypeMeta = components["schemas"]["IssueTypeIssueCreateMetadata"];
  * Used in tests to supply mock data without hitting the network.
  */
 export interface FieldResolverDeps {
-  getIssueTypes: (projectKey: string) => Promise<JiraIssueTypeMeta[]>;
+  getIssueTypes: (
+    projectKey: string,
+    authClient?: AuthClient,
+  ) => Promise<JiraIssueTypeMeta[]>;
   getFieldsForIssueType: (
     projectKey: string,
     issueTypeId: string,
+    authClient?: AuthClient,
   ) => Promise<JiraFieldMeta[]>;
 }
 
@@ -118,9 +123,10 @@ export async function resolveFieldNames(
   issueTypeName: string,
   names: ReadonlySet<string>,
   deps: FieldResolverDeps = defaultDeps,
+  authClient?: AuthClient,
 ): Promise<Result<FieldResolutionSuccess, ValidationProblemDetails>> {
   // 1. Find the issue type by name (case-insensitive)
-  const issueTypes = await deps.getIssueTypes(projectKey);
+  const issueTypes = await deps.getIssueTypes(projectKey, authClient);
   const issueType = issueTypes.find(
     (it) => it.name?.toLowerCase() === issueTypeName.toLowerCase(),
   );
@@ -147,6 +153,7 @@ export async function resolveFieldNames(
   const fields = await deps.getFieldsForIssueType(
     projectKey,
     issueType.id ?? "",
+    authClient,
   );
   const index = buildFieldIndex(fields);
 

@@ -29,14 +29,12 @@ type CreatedIssue = components["schemas"]["CreatedIssue"];
  */
 export async function getIssueTypes(
   projectKey: string,
-  caller: "asUser" | "asApp" = "asUser",
+  authClient: AuthClient = api.asApp(),
 ): Promise<IssueTypeIssueCreateMetadata[]> {
   const url = route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes`;
-  const response = await (caller === "asApp"
-    ? api.asApp().requestJira(url, { headers: { Accept: "application/json" } })
-    : api
-        .asUser()
-        .requestJira(url, { headers: { Accept: "application/json" } }));
+  const response = await authClient.requestJira(url, {
+    headers: { Accept: "application/json" },
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -66,7 +64,7 @@ export async function getIssueTypes(
 export async function getFieldsForIssueType(
   projectKey: string,
   issueTypeId: string,
-  caller: "asUser" | "asApp" = "asUser",
+  authClient: AuthClient = api.asApp(),
 ): Promise<FieldCreateMetadata[]> {
   const allFields: FieldCreateMetadata[] = [];
   let startAt = 0;
@@ -75,13 +73,9 @@ export async function getFieldsForIssueType(
   while (!isLast) {
     const url = route`/rest/api/3/issue/createmeta/${projectKey}/issuetypes/${issueTypeId}?startAt=${startAt}&maxResults=50`;
 
-    const response = await (caller === "asApp"
-      ? api
-          .asApp()
-          .requestJira(url, { headers: { Accept: "application/json" } })
-      : api
-          .asUser()
-          .requestJira(url, { headers: { Accept: "application/json" } }));
+    const response = await authClient.requestJira(url, {
+      headers: { Accept: "application/json" },
+    });
 
     if (!response.ok) {
       throw new Error(

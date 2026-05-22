@@ -33,6 +33,7 @@ export interface PipelineInput {
   issueType: string;
   fields: Record<string, unknown>;
   update?: Record<string, unknown>;
+  authClient?: AuthClient;
 }
 
 /** The Jira-shaped body produced by the pipeline, ready for createIssue(). */
@@ -64,7 +65,7 @@ export type PipelineResult = PipelineOk | PipelineErr;
 export async function runPipeline(
   input: PipelineInput,
 ): Promise<PipelineResult> {
-  const { project, issueType, fields, update } = input;
+  const { project, issueType, fields, update, authClient } = input;
 
   // Phase 1 — Resolve all field names via createMeta
   const namesToResolve = new Set<string>(Object.keys(fields));
@@ -72,7 +73,13 @@ export async function runPipeline(
   let resolved: Map<string, string>;
   let fieldMetaById: Map<string, FieldMeta>;
   try {
-    const result = await resolveFieldNames(project, issueType, namesToResolve);
+    const result = await resolveFieldNames(
+      project,
+      issueType,
+      namesToResolve,
+      undefined,
+      authClient,
+    );
 
     if (result.isErr()) {
       return { ok: false, response: toValidationErrorResponse(result.error) };

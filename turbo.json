@@ -92,6 +92,14 @@
       "cache": false,
       "persistent": false
     },
+    "forge:variables:set:dotenv": {
+      "cache": false,
+      "persistent": false
+    },
+    "forge:webtrigger:list": {
+      "cache": false,
+      "persistent": false
+    },
     "test:api": {
       "cache": false
     },

@@ -1,16 +1,15 @@
 // fallow-ignore-file unused-file
 /**
- * Admin page frontend — surfaces the base URLs for making REST API requests
- * to this Forge app on the current site.
+ * Admin page frontend — surfaces the installed webtrigger URLs for this
+ * Forge app on the current site.
  *
- * The base URL patterns (from Forge docs):
- *   https://api.atlassian.com/svc/<product>/<cloud-id>/apps/<app-id>_<env-id>
- *   https://<site-name>/gateway/api/svc/<product>/apps/<app-id>_<env-id>
+ * The URLs are loaded through a Forge resolver because webtrigger URLs are
+ * installation- and environment-specific.
  *
- * @see {@link https://developer.atlassian.com/platform/forge/expose-forge-app-rest-apis/#step-5--deploy-your-app}
+ * @see {@link https://developer.atlassian.com/platform/forge/runtime-reference/web-trigger-api/}
  */
 
-import { type FullContext, view } from "@forge/bridge";
+import { type FullContext, invoke, view } from "@forge/bridge";
 import ForgeReconciler, {
   Box,
   CodeBlock,
@@ -26,7 +25,7 @@ import ForgeReconciler, {
 import React, { useEffect, useState } from "react";
 
 /** The app UUID — taken from the `app.id` ARI in manifest.yml (static per app). */
-const APP_UUID = "bb398628-d837-4378-9fe5-9b033fb24aac";
+const APP_UUID = "ed4c162d-2d8a-4b93-a846-ed29952040eb";
 
 interface AdminPageContext {
   appId: string;
@@ -34,12 +33,18 @@ interface AdminPageContext {
   cloudId: string;
   currentAccountId: string | null;
   siteHostname: string | null;
-  baseUrlViaCloudId: string;
-  baseUrlViaSiteName: string | null;
+  webtriggerUrls: WebtriggerUrlInfo[];
 }
 
 interface SelectedUser {
   id: string;
+}
+
+interface WebtriggerUrlInfo {
+  key: string;
+  label: string;
+  token: string;
+  url: string;
 }
 
 const cardStyle = xcss({
@@ -72,20 +77,17 @@ const App = (): JSX.Element => {
         // environmentId may be a bare UUID or a full ARI — take the last segment
         const envId = (ctx.environmentId ?? "").split("/").pop() ?? "";
         const appId = APP_UUID;
-        const product = "jira";
-        const appEnvSegment = `${appId}_${envId}`;
         const siteHostname = getSiteHostname(ctx);
         const currentAccountId = ctx.accountId ?? null;
+        const webtriggerUrls =
+          await invoke<WebtriggerUrlInfo[]>("getWebtriggerUrls");
         setContext({
           appId,
           envId,
           cloudId,
           currentAccountId,
           siteHostname,
-          baseUrlViaCloudId: `https://api.atlassian.com/svc/${product}/${cloudId}/apps/${appEnvSegment}`,
-          baseUrlViaSiteName: siteHostname
-            ? `https://${siteHostname}/gateway/api/svc/${product}/apps/${appEnvSegment}`
-            : null,
+          webtriggerUrls,
         });
         setSelectedAccountId(currentAccountId);
       } catch (_e) {
@@ -118,44 +120,28 @@ const App = (): JSX.Element => {
     <Stack space="space.300">
       <SectionMessage appearance="information" title="How to use these URLs">
         <Text>
-          Use either base URL below to make authenticated REST API requests to
-          this Forge app from external clients. Append the route path (e.g.{" "}
-          <Text as="strong">/workitem</Text>) to complete the endpoint URL.
-          Authentication requires a 3LO OAuth 2.0 access token.
+          Use the webtrigger URLs below to call this Forge app from external
+          clients. Each request must include a short-lived JWT Bearer token
+          signed with the token shown for that endpoint.
         </Text>
       </SectionMessage>
-      <Box xcss={cardStyle}>
-        <Stack space="space.150">
-          <Heading size="small">Base URL (via Cloud ID)</Heading>
-          <CodeBlock language="text" text={context.baseUrlViaCloudId} />
-          <Text>
-            Example:{" "}
-            <Text as="strong">POST {context.baseUrlViaCloudId}/workitem</Text>
-          </Text>
-        </Stack>
-      </Box>
 
-      <Box xcss={cardStyle}>
-        <Stack space="space.150">
-          <Heading size="small">Base URL (via Site Name)</Heading>
-          {context.baseUrlViaSiteName ? (
-            <>
-              <CodeBlock language="text" text={context.baseUrlViaSiteName} />
+      {context.webtriggerUrls.map((webtrigger) => (
+        <Box key={webtrigger.key} xcss={cardStyle}>
+          <Stack space="space.150">
+            <Heading size="small">{webtrigger.label}</Heading>
+            <CodeBlock language="text" text={webtrigger.url} />
+            <Stack space="space.050">
               <Text>
-                Derived from this site:{" "}
-                <Text as="strong">{context.siteHostname}</Text>
+                Trigger key: <Text as="strong">{webtrigger.key}</Text>
               </Text>
-            </>
-          ) : (
-            <SectionMessage appearance="warning" title="Site URL unavailable">
               <Text>
-                Forge did not provide a valid site URL in the page context. Use
-                the Cloud ID URL above, or refresh this page and try again.
+                Token: <Text as="strong">{webtrigger.token}</Text>
               </Text>
-            </SectionMessage>
-          )}
-        </Stack>
-      </Box>
+            </Stack>
+          </Stack>
+        </Box>
+      ))}
 
       <Box xcss={cardStyle}>
         <Stack space="space.150">

@@ -12,7 +12,7 @@ sign it with the shared secret stored as a Forge environment variable.
 
 ## Endpoints
 
-Webtrigger URLs are generated per-installation. Use `forge webtrigger list` to
+Webtrigger URLs are generated per-installation. Use `npm run forge:webtrigger:list` to
 find the URL for each endpoint after installation.
 
 | Trigger key                    | Token required              | Description                                                       |
@@ -51,13 +51,18 @@ require `"raiseOnBehalfOf"` (a Jira `accountId`).
 
 ```bash
 cp .env.example .env
-# Edit .env: set SITENAME (e.g. "mycompany") and PRODUCT (e.g. "jira")
+# Edit .env: set FORGE_SITENAME (e.g. "mycompany") and FORGE_PRODUCT (e.g. "jira")
 ```
+
+`FORGE_*` variables configure local Forge CLI scripts and are not uploaded as
+Forge runtime variables by `npm run forge:variables:set:dotenv`. Non-`FORGE_*`
+variables, such as `WEBTRIGGER_TOKEN`, are candidates for Forge runtime
+variables.
 
 ### 2. Deploy and install
 
 ```bash
-npm run forge:deploy    # Build and deploy to the development environment
+npm run forge:deploy    # Build and deploy to the environment configured in .env
 npm run forge:install   # Install on the site configured in .env
 ```
 
@@ -76,11 +81,13 @@ works well:
 openssl rand -hex 32   # run twice — once per token
 ```
 
-Store them as Forge environment variables:
+Store them in `apps/webtrigger/.env` as `WEBTRIGGER_TOKEN` and
+`WEBTRIGGER_AS_USER_TOKEN`, then set the same values as Forge environment
+variables:
 
 ```bash
-forge variables set --environment development WEBTRIGGER_TOKEN <plain-token>
-forge variables set --environment development WEBTRIGGER_AS_USER_TOKEN <as-user-token>
+forge variables set --environment "$FORGE_ENVIRONMENT" WEBTRIGGER_TOKEN <plain-token>
+forge variables set --environment "$FORGE_ENVIRONMENT" WEBTRIGGER_AS_USER_TOKEN <as-user-token>
 ```
 
 > **Security:** These values are encrypted at rest and are never visible again
@@ -102,7 +109,7 @@ Give callers only the token(s) they need. A caller that does not need
 After installation, retrieve the URL for each trigger:
 
 ```bash
-forge webtrigger list
+npm run forge:webtrigger:list
 ```
 
 Share the appropriate URL and token with each caller.
@@ -180,11 +187,12 @@ would give stronger isolation in multi-caller deployments.
 
 ### Rotating secrets
 
-To rotate a secret, set the new value and redeploy. There is no grace period
-— old tokens signed with the previous secret stop working immediately.
+To rotate a secret, update the value in `apps/webtrigger/.env`, set the same
+new value as the Forge variable, and redeploy. There is no grace period — old
+tokens signed with the previous secret stop working immediately.
 
 ```bash
-forge variables set --environment development WEBTRIGGER_TOKEN <new-value>
+forge variables set --environment "$FORGE_ENVIRONMENT" WEBTRIGGER_TOKEN <new-value>
 npm run forge:deploy
 ```
 
@@ -213,7 +221,7 @@ npm run typecheck     # TypeScript type-check only
 
 | Script            | Description                                           |
 |-------------------|-------------------------------------------------------|
-| `forge:deploy`    | Build and deploy to development environment           |
+| `forge:deploy`    | Build and deploy to the environment in `.env`         |
 | `forge:install`   | Install on the site in `.env`                         |
 | `forge:upgrade`   | Upgrade an existing installation                      |
 | `forge:uninstall` | Uninstall from the site in `.env`                     |

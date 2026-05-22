@@ -40,7 +40,7 @@ modules:
         - write:workitem-as-user:custom
   jira:adminPage:
     - key: admin-page
-      title: API Base URL
+      title: Example API Route
       render: native
       resource: admin-page-resource
   jira:entityProperty:
