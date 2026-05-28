@@ -120,7 +120,6 @@ the preferred default.
 ## Prerequisites
 
 - [Node.js 24](https://nodejs.org/)
-- npm 10.9.0 or newer
 - [Forge CLI](https://developer.atlassian.com/platform/forge/set-up-forge/),
   installed and authenticated with `forge login`
 - [uv](https://docs.astral.sh/uv/) and [Hurl](https://hurl.dev/) for integration

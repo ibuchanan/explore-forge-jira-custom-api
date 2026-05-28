@@ -1,8 +1,0 @@
-version: 1
-scopes:
-  write:workitem:custom:
-    displayName: Write workitems
-    description: Allows creating and updating Jira workitems through the app REST API
-  write:workitem-as-user:custom:
-    displayName: Write workitems as user
-    description: Allows creating and updating Jira workitems through the app REST API on behalf of a specified user
