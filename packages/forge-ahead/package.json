@@ -98,8 +98,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@forge/api": "^7.1",
-    "@forge/kvs": "^1.6",
+    "@forge/api": "^8.0",
+    "@forge/kvs": "^2.0",
     "jmespath": "^0.16.0",
     "jose": "^6.2",
     "neverthrow": "^8.2",
@@ -108,7 +108,7 @@
   "devDependencies": {
     "@redocly/cli": "*",
     "@types/jmespath": "*",
-    "@types/node": "^25.8",
+    "@types/node": "^24",
     "@vitest/coverage-v8": "^4.1",
     "archunit": "^2.3",
     "openapi-typescript": "*",
