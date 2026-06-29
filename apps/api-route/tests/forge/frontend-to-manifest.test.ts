@@ -26,6 +26,7 @@ import {
 } from "./ast-helpers";
 import { directoryExists, getAllTypeScriptFiles } from "./filesystem-helpers";
 import {
+  getManifestHandlerReferences,
   getModuleResolvers,
   getProjectPaths,
   loadManifest,
@@ -158,126 +159,19 @@ describe("Frontend Invoke Validation", () => {
   it("should validate that all manifest-referenced backend functions are exported from src/index.ts", () => {
     const paths = getProjectPaths();
     const manifest = loadManifest();
-
-    const indexSource = parseSourceFile(paths.srcIndex);
-    const exportedFunctionNames = findExportedFunctionNames(indexSource);
+    const exportedFunctionNames = new Set(
+      findExportedFunctionNames(parseSourceFile(paths.srcIndex)),
+    );
 
     const missingExports: string[] = [];
-
-    // Check regular function declarations
-    const declaredFunctions = manifest.modules.function || [];
-    for (const func of declaredFunctions) {
-      const handlerName = func.handler.split(".")[1]; // Extract "functionName" from "index.functionName"
-
-      if (!exportedFunctionNames.includes(handlerName)) {
+    for (const ref of getManifestHandlerReferences(manifest)) {
+      const handlerName = ref.handler.includes("#")
+        ? ref.handler.split("#")[1]
+        : ref.handler.split(".")[1];
+      if (!exportedFunctionNames.has(handlerName)) {
         missingExports.push(
-          `Function "${func.key}" (handler: ${func.handler}) is declared in manifest but not exported from src/index.ts`,
+          `${ref.moduleType} "${ref.key}" (handler: ${ref.handler}) is declared in manifest but not exported from src/index.ts`,
         );
-      }
-    }
-
-    // Check consumer (queue) module functions
-    const consumers = manifest.modules.consumer || [];
-    for (const consumer of consumers) {
-      const functionName = consumer.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Consumer "${consumer.key}" (queue: ${consumer.queue}, function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check scheduled trigger module functions
-    const scheduledTriggers = manifest.modules.scheduledTrigger || [];
-    for (const trigger of scheduledTriggers) {
-      const functionName = trigger.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Scheduled trigger "${trigger.key}" (interval: ${trigger.interval}, function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check web trigger module functions
-    const webTriggers = manifest.modules.webtrigger || [];
-    for (const trigger of webTriggers) {
-      const functionName = trigger.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Web trigger "${trigger.key}" (function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check trigger (event) module functions
-    const triggers = manifest.modules.trigger || [];
-    for (const trigger of triggers) {
-      // Skip triggers that use remote endpoints instead of local functions
-      if (trigger.function) {
-        const functionName = trigger.function;
-        if (!exportedFunctionNames.includes(functionName)) {
-          missingExports.push(
-            `Trigger "${trigger.key}" (function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-          );
-        }
-      }
-    }
-
-    // Check Rovo action module functions
-    const actions = manifest.modules.action || [];
-    for (const action of actions) {
-      const functionName = action.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Rovo action "${action.key}" (name: ${action.name}, function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check Jira workflow validator functions
-    const workflowValidators = manifest.modules["jira:workflowValidator"] || [];
-    for (const validator of workflowValidators) {
-      const functionName = validator.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Jira workflow validator "${validator.key}" (function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check Jira workflow condition functions
-    const workflowConditions = manifest.modules["jira:workflowCondition"] || [];
-    for (const condition of workflowConditions) {
-      const functionName = condition.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Jira workflow condition "${condition.key}" (function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check Jira workflow post function functions
-    const workflowPostFunctions =
-      manifest.modules["jira:workflowPostFunction"] || [];
-    for (const postFunction of workflowPostFunctions) {
-      const functionName = postFunction.function;
-      if (!exportedFunctionNames.includes(functionName)) {
-        missingExports.push(
-          `Jira workflow post function "${postFunction.key}" (function: ${functionName}) is declared in manifest but not exported from src/index.ts`,
-        );
-      }
-    }
-
-    // Check module resolvers (e.g., jiraServiceManagement:assetsImportType)
-    const moduleResolvers = getModuleResolvers(manifest);
-    for (const module of moduleResolvers) {
-      if (module.resolver) {
-        const functionName = module.resolver.function;
-        if (!exportedFunctionNames.includes(functionName)) {
-          missingExports.push(
-            `Module resolver "${functionName}" (from module "${module.key}") is declared in manifest but not exported from src/index.ts`,
-          );
-        }
       }
     }
 

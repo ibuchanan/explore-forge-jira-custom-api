@@ -206,6 +206,32 @@ export function findJsxElements(
 // Import/Export Utilities
 // ============================================================================
 
+function resolveImportBindings(clause: ts.ImportClause): {
+  specifiers: string[];
+  type: "named" | "default" | "namespace";
+} {
+  const specifiers: string[] = [];
+  let type: "named" | "default" | "namespace" = "named";
+
+  if (clause.name) {
+    specifiers.push(clause.name.text);
+    type = "default";
+  }
+
+  if (clause.namedBindings) {
+    if (ts.isNamespaceImport(clause.namedBindings)) {
+      specifiers.push(clause.namedBindings.name.text);
+      type = "namespace";
+    } else if (ts.isNamedImports(clause.namedBindings)) {
+      for (const element of clause.namedBindings.elements) {
+        specifiers.push(element.propertyName?.text || element.name.text);
+      }
+    }
+  }
+
+  return { specifiers, type };
+}
+
 /**
  * Find all import declarations in a file
  *
@@ -230,58 +256,29 @@ export function findImports(
   }> = [];
 
   for (const statement of sourceFile.statements) {
-    if (ts.isImportDeclaration(statement)) {
-      const moduleSpecifier = statement.moduleSpecifier;
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
 
-      if (!ts.isStringLiteral(moduleSpecifier)) {
-        continue;
-      }
+    const source = statement.moduleSpecifier.text;
 
-      const source = moduleSpecifier.text;
-
-      // Filter by source if provided
-      if (sourceFilter) {
-        const matches =
-          typeof sourceFilter === "string"
-            ? source === sourceFilter
-            : sourceFilter.test(source);
-        if (!matches) {
-          continue;
-        }
-      }
-
-      const specifiers: string[] = [];
-      let type: "named" | "default" | "namespace" = "named";
-
-      if (statement.importClause) {
-        // import Foo from "bar"
-        if (statement.importClause.name) {
-          specifiers.push(statement.importClause.name.text);
-          type = "default";
-        }
-
-        // import * as Foo from "bar"
-        if (statement.importClause.namedBindings) {
-          if (ts.isNamespaceImport(statement.importClause.namedBindings)) {
-            specifiers.push(statement.importClause.namedBindings.name.text);
-            type = "namespace";
-          } else if (ts.isNamedImports(statement.importClause.namedBindings)) {
-            // import { Foo, Bar } from "baz"
-            for (const element of statement.importClause.namedBindings
-              .elements) {
-              specifiers.push(element.propertyName?.text || element.name.text);
-            }
-          }
-        }
-      }
-
-      results.push({
-        source,
-        specifiers,
-        line: getLineNumber(sourceFile, statement),
-        type,
-      });
+    if (sourceFilter) {
+      const matches =
+        typeof sourceFilter === "string"
+          ? source === sourceFilter
+          : sourceFilter.test(source);
+      if (!matches) continue;
     }
+
+    const { specifiers, type } = statement.importClause
+      ? resolveImportBindings(statement.importClause)
+      : { specifiers: [] as string[], type: "named" as const };
+
+    results.push({
+      source,
+      specifiers,
+      line: getLineNumber(sourceFile, statement),
+      type,
+    });
   }
 
   return results;
