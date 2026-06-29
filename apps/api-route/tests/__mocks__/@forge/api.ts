@@ -10,7 +10,6 @@
  */
 
 /** route tagged-template stub — returns the template string as-is */
-// fallow-ignore-next-line unused-export
 export const route = (
   strings: TemplateStringsArray,
   ...values: unknown[]
@@ -31,5 +30,4 @@ const api = {
   asApp: () => makeApiClient(),
 };
 
-// fallow-ignore-next-line unused-export
 export default api;
